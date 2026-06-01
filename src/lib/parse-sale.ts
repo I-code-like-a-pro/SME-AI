@@ -15,7 +15,7 @@ function extractAmount(text: string): number {
   if (currencyMatch) return parseFloat(currencyMatch[1]);
 
   // Fall back to last number in the string (often the total)
-  const allNumbers = [...text.matchAll(/(\d+(?:\.\d{1,2})?)/g)];
+ const allNumbers = Array.from(text.matchAll(/(\d+(?:\.\d{1,2})?)/g));
   if (allNumbers.length > 0) {
     return parseFloat(allNumbers[allNumbers.length - 1][1]);
   }
