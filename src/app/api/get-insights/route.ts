@@ -15,12 +15,13 @@ Respond in ${lang}.
 
 Sales data: ${JSON.stringify(sales ?? [])}
 
-If there is no or very little sales data, do NOT suggest external methods like "keep a paper notebook" or "use a third-party phone app" and do NOT use patronizing language such as "Since you haven't logged any sales yet". Instead:
-- Ask one concise clarifying question asking whether the user wants to log sales now (for example: "Would you like to log your recent sales so I can give more accurate insights?").
-- If the user confirms, instruct a single in-app action (for example: "Tap Log Sale and enter amount, description, quantity, and item; I can guide you through it"), or request the exact sale fields in chat so they can be recorded.
+If there is no or very little sales data, instead of asking for external methods or using patronizing language, ask one concise clarifying question about whether they want to log sales now (for example: "Would you like to log your recent sales so I can give more accurate insights?").
 
-Return ONLY a JSON array of insight strings. Example:
-["Your best selling day is Monday.", "Rice is your top product this week."]`,
+IMPORTANT: You MUST respond ONLY with a valid JSON array of strings. Example:
+["Your best selling day is Monday.", "Rice is your top product this week."]
+
+If providing questions instead of insights, wrap them in the JSON array too:
+["Would you like to log your recent sales so I can give more accurate insights?"]`,
       { maxTokens: 500 }
     );
 
