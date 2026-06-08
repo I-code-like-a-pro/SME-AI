@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callClaude } from "@/lib/anthropic";
 import { languagePrompt } from "@/lib/language";
+import { tavilySearch } from "@/lib/tavily";
+import { addMessage, getConversation, updateConversationTitle } from "@/lib/conversations";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -9,7 +11,8 @@ interface ChatMessage {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, context } = await req.json();
+    const body = await req.json();
+    const { messages, context, conversationId } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: "No messages provided" }, { status: 400 });
@@ -25,18 +28,44 @@ export async function POST(req: NextRequest) {
       .map((m) => `${m.role === "user" ? "Trader" : "Assistant"}: ${m.content}`)
       .join("\n");
 
-    const system = `You are SME AI — a warm, practical financial assistant for micro-traders and small business owners who may not have bank accounts.
-  Keep answers short (2-4 sentences unless they ask for detail). Use simple words. Be encouraging, never preachy.
-  Respond in ${lang}.
-  Help with: sales tracking, saving, loans, pricing, restocking, scams to avoid, and growing their business.
-  Do not make up specific loan offers or claim money was transferred.
+    const system = `You are SME AI — a sharp, friendly business advisor for small traders and market sellers.
+Respond in ${lang}.
 
-  Important guidance for in-app use:
-  - You operate inside the SME AI app and have access to the user's in-app sales logs (the Log Sale feature). Prefer in-app actions over external suggestions.
-  - If you detect missing or incomplete sales data for a request, first ask one concise clarifying question to identify what is missing (for example: "Do you want to log your recent sales now so I can give more accurate advice?").
-  - Offer a single, clear in-app action the user can take (for example: "Tap Log Sale and enter amount, description, quantity, and item for each sale; I can guide you through it") and, if the user agrees, prompt them to provide the specific values in chat so they can be recorded.
-  - When asking for values, request the exact fields needed: amount, description, quantity (optional), item (optional), and date/time (optional). Keep the request short and show one example entry.
-  - Do NOT suggest external methods like keeping a paper notebook or using third-party phone apps. Do NOT use patronizing language such as "Since you haven't logged any sales yet" or give blanket rules like "set aside 10%". Stay practical and supportive.`;
+Your personality:
+- Talk like a knowledgeable friend who runs a business, not a corporate chatbot
+- Be direct and specific — give real answers, not generic advice
+- Use the trader's actual sales data when it's available; when it's not, give general advice anyway and optionally mention they can log sales for more personalised tips
+- Keep responses conversational — vary your length naturally based on what the question needs
+- Don't bold everything, don't bullet-point everything, just talk
+- Never lecture or moralize
+- Never refuse to answer a question just because data is limited — make a reasonable recommendation
+
+You help with: restocking decisions, pricing, saving, loan decisions, spotting scams, and growing their business.
+Do not claim money was transferred or invent specific loan products.`;
+
+    let searchSummary = "";
+
+    try {
+      const lastUser = (messages as ChatMessage[]).slice().reverse().find((m) => m.role === "user");
+      const lastText = lastUser?.content?.toLowerCase() ?? "";
+      const shouldSearch = /restock|what products|should i restock|competitor|price|prices|where to buy|search/.test(lastText);
+      if (shouldSearch && lastText) {
+        const results = await tavilySearch(lastText, { searchDepth: "basic" });
+        const items = (results as any)?.items ?? (results as any)?.results ?? results;
+        if (Array.isArray(items)) {
+          const top = items.slice(0, 3).map((it: any, i: number) => {
+            const title = it.title ?? it.headline ?? it.name ?? `Result ${i + 1}`;
+            const snippet = it.snippet ?? it.summary ?? it.excerpt ?? it.description ?? "";
+            return `- ${title}: ${snippet}`;
+          });
+          searchSummary = `Web search results:\n${top.join("\n")}`;
+        } else if (typeof results === "string") {
+          searchSummary = `Web search results:\n${results}`;
+        }
+      }
+    } catch (err) {
+      console.warn("[assistant] tavily search failed", err);
+    }
 
     const userPrompt = `Trader profile:
 - Name: ${name}
@@ -52,7 +81,36 @@ ${history}
 
 Reply as the Assistant to the Trader's latest message. Be specific to their numbers when possible.`;
 
-    const reply = await callClaude(userPrompt, { system, maxTokens: 600 });
+    const fullPrompt = searchSummary ? `${userPrompt}\n\n${searchSummary}` : userPrompt;
+
+    const reply = await callClaude(fullPrompt, { system, maxTokens: 600 });
+
+    try {
+      if (conversationId) {
+        const msgs = messages as ChatMessage[];
+        const last = msgs[msgs.length - 1];
+        if (last) await addMessage(conversationId, { role: last.role, content: last.content });
+        await addMessage(conversationId, { role: "assistant", content: reply });
+        // Auto-generate a title from the first user message if conversation has a generic title
+        try {
+          const firstUser = (messages as ChatMessage[]).find((m) => m.role === "user");
+          if (firstUser && firstUser.content) {
+            const conv = await getConversation(conversationId);
+            const shouldReplace = !conv || !conv.title || /^(Conversation|New)/i.test(conv.title);
+            if (shouldReplace) {
+              const words = firstUser.content.replace(/[\n\r]+/g, " ").trim().split(/\s+/).slice(0, 8);
+              let title = words.join(" ");
+              if (title.length > 60) title = title.slice(0, 57) + "...";
+              await updateConversationTitle(conversationId, title);
+            }
+          }
+        } catch (err) {
+          console.warn("[assistant] could not auto-generate conversation title", err);
+        }
+      }
+    } catch (err) {
+      console.warn("[assistant] failed to persist messages", err);
+    }
 
     return NextResponse.json({ reply });
   } catch (error) {

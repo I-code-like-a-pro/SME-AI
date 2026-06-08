@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   PlusCircle,
   BarChart3,
-  Wallet,
   Sparkles,
   TrendingUp,
   ArrowUpRight,
@@ -24,7 +23,6 @@ const quickActions = [
   { href: "/assistant", label: "Ask AI", icon: Sparkles, color: "bg-green-600" },
   { href: "/log", label: "Log Sale", icon: PlusCircle, color: "bg-emerald-500" },
   { href: "/insights", label: "Insights", icon: BarChart3, color: "bg-teal-500" },
-  { href: "/payments", label: "Pay", icon: Wallet, color: "bg-green-700" },
 ];
 
 export default function DashboardPage() {

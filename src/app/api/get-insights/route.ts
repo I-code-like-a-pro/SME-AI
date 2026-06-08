@@ -15,7 +15,11 @@ Respond in ${lang}.
 
 Sales data: ${JSON.stringify(sales ?? [])}
 
-If there is no or very little sales data, instead of asking for external methods or using patronizing language, ask one concise clarifying question about whether they want to log sales now (for example: "Would you like to log your recent sales so I can give more accurate insights?").
+
+If there is no or very little sales data, instead of asking for
+  external methods or using patronizing language, ask one concise clarifying question about whether
+ they want to log sales now (for example: "Would you like to log 
+your recent sales so I can give more accurate insights?").
 
 IMPORTANT: You MUST respond ONLY with a valid JSON array of strings. Example:
 ["Your best selling day is Monday.", "Rice is your top product this week."]

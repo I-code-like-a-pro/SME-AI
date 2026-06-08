@@ -18,7 +18,12 @@ export async function POST(req: NextRequest) {
     }
 
     // ensure session and get user id
-    await ensureSession();
+    try {
+      await ensureSession();
+    } catch (err) {
+      // Not authenticated — return 401 so clients can fallback to local save
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
     const userId = await getUserId();
 
     let body: unknown;

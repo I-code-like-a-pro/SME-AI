@@ -7,7 +7,6 @@ import {
   PlusCircle,
   BarChart3,
   Sparkles,
-  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +15,6 @@ const navItems = [
   { href: "/log", label: "Log", icon: PlusCircle },
   { href: "/assistant", label: "AI", icon: Sparkles },
   { href: "/insights", label: "Insights", icon: BarChart3 },
-  { href: "/payments", label: "Pay", icon: Wallet },
 ];
 
 const hiddenRoutes = ["/", "/onboarding"];

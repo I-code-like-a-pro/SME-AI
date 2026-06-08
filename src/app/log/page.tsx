@@ -19,6 +19,7 @@ export default function LogSalePage() {
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [speechSupported, setSpeechSupported] = useState(true);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const lastAutoSavedRef = useRef<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -32,36 +33,97 @@ export default function LogSalePage() {
       setSpeechSupported(false);
       return;
     }
-    const recognition = new SpeechRecognition();
+    const recognition: any = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = "en-US";
-    recognition.onresult = (event) => {
-      const transcript = Array.from(event.results).map((r) => r[0].transcript).join("");
-      setText(transcript);
+    recognition.onresult = (event: any) => {
+      try {
+        let finalTranscript = "";
+        let interimTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          const chunk = Array.from(result as any)
+            .map((alt: any) => alt.transcript)
+            .join("");
+          if (result.isFinal) {
+            finalTranscript += chunk;
+          } else {
+            interimTranscript += chunk;
+          }
+        }
+
+        // show the latest combination of finalized + interim text
+        setText((prev) => {
+          // If the new final transcript is non-empty, prefer it plus interim
+          if (finalTranscript) return `${finalTranscript}${interimTranscript}`;
+          // otherwise keep any existing final text and append interim
+          return `${prev || ""}${interimTranscript}`;
+        });
+
+        // If we have a final transcript containing a parsed sale, auto-save it once
+        if (finalTranscript) {
+          const trimmed = finalTranscript.trim();
+          if (trimmed && lastAutoSavedRef.current !== trimmed) {
+            try {
+              const parsed = parseSaleInput(trimmed);
+              const amount = Number(parsed?.amount ?? 0);
+              const qty = parsed?.quantity ? Number(parsed.quantity) : undefined;
+              if (parsed && (amount > 0 || (qty && qty > 0))) {
+                lastAutoSavedRef.current = trimmed;
+                // call the same save flow the button uses, passing the final transcript
+                (async () => { setText(trimmed); await handleSave(trimmed); })();
+              }
+            } catch (e) {
+              // ignore parse errors and continue
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("onresult handler error", e);
+      }
     };
+    recognition.onnomatch = () => console.warn("speech not recognized");
+    recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
+    recognition.onerror = () => {
+      console.warn("speech recognition error");
+      setIsListening(false);
+    };
     recognitionRef.current = recognition;
   }, []);
 
   function toggleListening() {
     if (!recognitionRef.current) return;
     if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.warn("stop() threw", e);
+      }
     } else {
       setText("");
-      recognitionRef.current.start();
-      setIsListening(true);
+      try {
+        recognitionRef.current.start();
+        // `onstart` will set `isListening` when recognition actually begins
+      } catch (err) {
+        // Ignore InvalidStateError if recognition already started elsewhere
+        console.warn("start() threw", err);
+        if ((err as any)?.name === "InvalidStateError") {
+          // ensure our state matches the recognition state
+          setIsListening(true);
+        }
+      }
     }
   }
 
-  async function handleSave() {
-    if (!text.trim() || saving) return;
+  async function handleSave(passedText?: string) {
+    const textToUse = (passedText ?? text) || "";
+    if (!textToUse.trim() || saving) return;
     setSaving(true);
     try {
-      const parsed = parseSaleInput(text);
+      const parsed = parseSaleInput(textToUse);
       await saveSale({
         description: parsed.description,
         amount: parsed.amount,
@@ -86,7 +148,7 @@ export default function LogSalePage() {
         <div className="mb-6">
           <h1 className="text-2xl font-extrabold text-gray-900">Log a Sale</h1>
           <p className="text-muted-foreground mt-1">
-            Speak or type what you sold — e.g. &quot;sold 10 bags of rice for $50&quot;
+            Speak or type what you sold — e.g. &quot;sold 10 bags of rice for ₦50&quot;
           </p>
         </div>
 
@@ -126,7 +188,7 @@ export default function LogSalePage() {
               </CardContent>
             </Card>
           )}
-          <Button onClick={handleSave} disabled={!text.trim() || saving} size="lg" className="w-full">
+          <Button onClick={() => handleSave()} disabled={!text.trim() || saving} size="lg" className="w-full">
             {saving ? <><Loader2 className="h-5 w-5 animate-spin" /> Saving...</> : saved ? <><CheckCircle2 className="h-5 w-5" /> Saved!</> : "Save Sale"}
           </Button>
         </div>

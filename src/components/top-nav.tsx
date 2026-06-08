@@ -7,7 +7,6 @@ import {
   PlusCircle,
   BarChart3,
   GraduationCap,
-  Wallet,
   Banknote,
   Sparkles,
   LogOut,
@@ -21,10 +20,9 @@ const navItems = [
   { href: "/assistant", label: "AI Assistant", icon: Sparkles },
   { href: "/log", label: "Log Sale", icon: PlusCircle },
   { href: "/insights", label: "Insights", icon: BarChart3 },
-  { href: "/loans", label: "Loans", icon: Banknote },
-  { href: "/learn", label: "Learn", icon: GraduationCap },
-  { href: "/payments", label: "Payments", icon: Wallet },
-];
+    { href: "/loans", label: "Loans", icon: Banknote },
+    { href: "/learn", label: "Learn", icon: GraduationCap },
+  ];
 
 const hiddenRoutes = ["/", "/onboarding", "/signin", "/signup"];
 

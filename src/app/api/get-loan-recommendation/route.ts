@@ -29,12 +29,14 @@ Business type: ${businessType || "general trader"}
 Respond in ${lang}.
 Sales data: ${JSON.stringify(sales ?? [])}
 
-If there is no or very little sales data, do NOT advise using external notebooks or third-party apps, and do NOT include patronizing language such as "Since you haven't logged any sales yet". Instead:
-- Ask one short question offering to log sales now (for example: "Would you like to log 3 recent sales now so I can tailor recommendations?").
-- If the user agrees, instruct a single in-app action (for example: "Use the Log Sale feature and provide amount, description, quantity, item and date/time for each sale; I can guide you") or request those exact values in chat so they can be recorded.
-- If the user declines, provide loan suggestions based on the business type only and clearly mark that recommendations are based on limited data.
+If there is no or very little sales data, do NOT ask the user a question. Instead, return loan recommendations with eligibility set to "Low" and a reason that clearly states the recommendation is based on limited data and that more sales logging will improve future recommendations.
 
-Always return ONLY a valid JSON array, no explanation, no markdown.`,
+IMPORTANT: return ONLY a valid JSON array of objects. Do not include any markdown, bullet points, explanation, or extra text.
+Example:
+[
+  {"name":"Starter micro-loan","amount":"$100-$200","reason":"Limited sales data; log more sales to improve recommendations.","eligibility":"Low","repayment":"2-3 months"}
+]
+`,
       { maxTokens: 600 }
     );
 
