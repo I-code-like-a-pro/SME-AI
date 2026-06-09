@@ -19,7 +19,7 @@ export async function tavilySearch(query: string, options: TavilyOptions = {}) {
   const client = getClient();
 
   // Pass options through to the SDK. Caller should sanitize inputs.
-  const res = await client.search(query, options as any);
+  const res = await client.search(query, {searchDepth: "advanced"});
   return res;
 }
 
