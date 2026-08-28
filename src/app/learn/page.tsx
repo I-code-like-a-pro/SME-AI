@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OnboardingGuard } from "@/components/onboarding-guard";
 import { getOnboardingData } from "@/lib/storage";
+import { apiClient } from "@/lib/api-client";
 import type { LearnTip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -44,17 +45,11 @@ export default function LearnPage() {
     setAiLoading(true);
     setAiTip(null);
     try {
-      const res = await fetch("/api/get-tip", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          businessType: user?.businessType,
-          language: user?.language,
-        }),
+      const { tip } = await apiClient.getTip({
+        businessType: user?.businessType,
+        language: user?.language,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setAiTip(data.tip);
+      setAiTip(tip);
     } catch {
       setAiTip("Could not load AI tip. Check your API key and restart the dev server.");
     } finally {

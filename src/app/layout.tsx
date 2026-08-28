@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
 import { TopNav } from "@/components/top-nav";
+import { FloatingLog } from "@/components/floating-log";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
 
@@ -28,6 +29,7 @@ export default function RootLayout({
             <TopNav />
             <main className="min-h-screen pb-20 md:pb-0">{children}</main>
             <BottomNav />
+            <FloatingLog />
           </AuthGuard>
         </AuthProvider>
       </body>

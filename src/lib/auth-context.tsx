@@ -1,12 +1,10 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
-import { getCurrentUser, signOut } from "./supabase/auth";
-import { getSupabaseClient } from "./supabase/client";
+import { apiClient, type AuthUser } from "./api-client";
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -14,42 +12,45 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function checkAuth() {
+    let mounted = true;
+
+    async function refresh() {
       try {
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
+        const current = await apiClient.auth.getCurrentUser();
+        if (mounted) setUser(current);
       } catch (error) {
         console.error("Auth check failed:", error);
-        setUser(null);
+        if (mounted) setUser(null);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
 
-    checkAuth();
+    refresh();
 
-    // Listen for auth state changes
-    const supabase = getSupabaseClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-      } else {
-        setUser(null);
-      }
-    });
+    // Keep auth state in sync after sign-in/out and across browser tabs.
+    function onAuthChanged() {
+      apiClient.auth.getCurrentUser().then((u) => {
+        if (mounted) setUser(u);
+      });
+    }
+    window.addEventListener("sme-ai:auth-changed", onAuthChanged);
+    window.addEventListener("storage", onAuthChanged);
 
     return () => {
-      subscription?.unsubscribe();
+      mounted = false;
+      window.removeEventListener("sme-ai:auth-changed", onAuthChanged);
+      window.removeEventListener("storage", onAuthChanged);
     };
   }, []);
 
   async function handleSignOut() {
     try {
-      await signOut();
+      await apiClient.auth.signOut();
       setUser(null);
     } catch (error) {
       console.error("Sign out failed:", error);
@@ -58,9 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider
-      value={{ user, loading, signOut: handleSignOut }}
-    >
+    <AuthContext.Provider value={{ user, loading, signOut: handleSignOut }}>
       {children}
     </AuthContext.Provider>
   );

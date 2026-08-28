@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { OnboardingGuard } from "@/components/onboarding-guard";
 import { getOnboardingData, getSales, getSalesSummary } from "@/lib/storage";
+import { apiClient } from "@/lib/api-client";
 import { LANGUAGE_GREETINGS, type OnboardingData, type Sale } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -55,17 +56,11 @@ export default function DashboardPage() {
       setInsightsError(null);
 
       try {
-        const res = await fetch("/api/get-insights", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sales,
-            language: data?.language ?? "english",
-          }),
+        const { insights } = await apiClient.getInsights({
+          sales,
+          language: data?.language ?? "english",
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Failed to load insights");
-        setInsights(json.insights ?? []);
+        setInsights(insights ?? []);
       } catch (error) {
         setInsightsError(error instanceof Error ? error.message : "Could not load AI insights");
         setInsights([]);

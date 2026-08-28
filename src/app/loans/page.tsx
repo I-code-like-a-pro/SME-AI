@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OnboardingGuard } from "@/components/onboarding-guard";
 import { getOnboardingData, getSales } from "@/lib/storage";
+import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface AiLoan {
@@ -33,18 +34,12 @@ export default function LoansPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/get-loan-recommendation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sales: await getSales(),
-            businessType: user?.businessType,
-            language: user?.language,
-          }),
+        const { loans } = await apiClient.getLoanRecommendation({
+          sales: await getSales(),
+          businessType: user?.businessType,
+          language: user?.language,
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load recommendations");
-        setLoans(data.loans ?? []);
+        setLoans(loans ?? []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not load AI loan advice");
       } finally {

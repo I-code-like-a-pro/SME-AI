@@ -5,7 +5,7 @@ export type BusinessType =
   | "agriculture"
   | "other";
 
-export type Language = "english" | "pidgin" | "swahili" | "hindi";
+export type Language = "english" | "pidgin";
 
 export interface OnboardingData {
   name: string;
@@ -44,20 +44,16 @@ export const BUSINESS_TYPES: { value: BusinessType; label: string; emoji: string
   { value: "retail", label: "Retail Shop", emoji: "🏪" },
   { value: "food", label: "Food & Drinks", emoji: "🍲" },
   { value: "services", label: "Services", emoji: "✂️" },
-  { value: "agriculture", label: "Agriculture", emoji: "🌾" },
-  { value: "other", label: "Other", emoji: "💼" },
+ 
 ];
 
 export const LANGUAGES: { value: Language; label: string; native: string }[] = [
   { value: "english", label: "English", native: "English" },
   { value: "pidgin", label: "Pidgin", native: "Pidgin English" },
-  { value: "swahili", label: "Swahili", native: "Kiswahili" },
-  { value: "hindi", label: "Hindi", native: "हिन्दी" },
+ 
 ];
 
 export const LANGUAGE_GREETINGS: Record<Language, string> = {
   english: "Welcome back",
   pidgin: "Welcome back o!",
-  swahili: "Karibu tena",
-  hindi: "वापस स्वागत है",
 };
