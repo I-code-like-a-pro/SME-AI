@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { OnboardingGuard } from "@/components/onboarding-guard";
 import { getOnboardingData, getSales, getSalesSummary } from "@/lib/storage";
-import { apiClient } from "@/lib/api-client";
 import { LANGUAGE_GREETINGS, type OnboardingData, type Sale } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -50,23 +49,21 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadInsights() {
-      const data = await getOnboardingData();
-      const sales = await getSales();
       setInsightsLoading(true);
       setInsightsError(null);
 
-      try {
-        const { insights } = await apiClient.getInsights({
-          sales,
-          language: data?.language ?? "english",
-        });
-        setInsights(insights ?? []);
-      } catch (error) {
-        setInsightsError(error instanceof Error ? error.message : "Could not load AI insights");
-        setInsights([]);
-      } finally {
-        setInsightsLoading(false);
-      }
+      const sales = await getSales();
+      const generated =
+        sales.length === 0
+          ? []
+          : [
+              `You've logged ${sales.length} sale${sales.length === 1 ? "" : "s"}. Recording every sale — even the small ones — is the habit that unlocks better advice.`,
+              "Try setting aside a small part of each day's takings as savings before you restock.",
+              "Keep logging daily to spot your best-selling items and your busiest days.",
+            ];
+
+      setInsights(generated);
+      setInsightsLoading(false);
     }
 
     loadInsights();

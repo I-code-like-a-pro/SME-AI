@@ -6,10 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { OnboardingGuard } from "@/components/onboarding-guard";
-import { getOnboardingData, getSales, getSalesSummary, saveSale } from "@/lib/storage";
-import { apiClient, type ChatMessage, type Conversation } from "@/lib/api-client";
-import type { ParsedSale } from "@/lib/parse-sale";
-import type { OnboardingData } from "@/lib/types";
+import {
+  getOnboardingData,
+  getSalesSummary,
+  saveSale,
+  getConversations,
+  createConversation,
+} from "@/lib/storage";
+import { parseSaleInput, type ParsedSale } from "@/lib/parse-sale";
+import type { ChatMessage, Conversation, OnboardingData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const QUICK_PROMPTS = [
@@ -44,7 +49,7 @@ export default function AssistantPage() {
         setInitialized(true);
       }
       try {
-        const list = await apiClient.conversations.list();
+        const list = await getConversations();
         setConversations(list);
       } catch (err) {
         console.warn("Could not load conversations", err);
@@ -61,7 +66,7 @@ export default function AssistantPage() {
     if (!text.trim() || loading) return;
 
     // Try to interpret the message as a sale first (fully client-side).
-    const parsed = apiClient.parseSale(text.trim());
+    const parsed = parseSaleInput(text.trim());
     if (parsed && (Number(parsed.amount) > 0 || (parsed.quantity && Number(parsed.quantity) > 0))) {
       setParsedSalePending(parsed);
       setInput("");
@@ -76,12 +81,11 @@ export default function AssistantPage() {
 
     try {
       const summary = await getSalesSummary();
-      const recentSales = await getSales();
 
       // Ensure a conversation exists — create one if none selected.
       if (!selectedConversationId) {
         try {
-          const conv = await apiClient.conversations.create("Conversation");
+          const conv = await createConversation("Conversation");
           setConversations((prev) => [conv, ...prev]);
           setSelectedConversationId(conv.id);
         } catch (err) {
@@ -89,21 +93,8 @@ export default function AssistantPage() {
         }
       }
 
-      const { reply } = await apiClient.sendAssistantMessage({
-        messages: nextMessages,
-        context: {
-          name: user?.name,
-          businessType: user?.businessType,
-          language: user?.language,
-          salesSummary: {
-            today: summary.today,
-            week: summary.week,
-            month: summary.month,
-            totalSales: summary.totalSales,
-          },
-          recentSales: recentSales.slice(0, 10),
-        },
-      });
+      const who = user?.name ? `${user.name}, ` : "";
+      const reply = `Thanks ${who}I've noted that. I'm running in offline demo mode, so I can't give live tailored advice yet — but you have ${summary.totalSales} sale${summary.totalSales === 1 ? "" : "s"} logged so far. Keep logging and your dashboard insights will get sharper.`;
 
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (error) {
@@ -161,7 +152,7 @@ export default function AssistantPage() {
               <button
                 className="text-xs text-primary"
                 onClick={async () => {
-                  const conv = await apiClient.conversations.create("Conversation");
+                  const conv = await createConversation("Conversation");
                   setConversations((prev) => [conv, ...prev]);
                   setSelectedConversationId(conv.id);
                   setMessages([]);
@@ -174,10 +165,9 @@ export default function AssistantPage() {
               {conversations.map((c) => (
                 <button
                   key={c.id}
-                  onClick={async () => {
+                  onClick={() => {
                     setSelectedConversationId(c.id);
-                    const msgs = await apiClient.conversations.messages(c.id);
-                    setMessages(msgs.map((m) => ({ role: m.role, content: m.content })));
+                    setMessages([]);
                   }}
                   className={cn(
                     "w-full text-left rounded-md px-3 py-2 border-2",

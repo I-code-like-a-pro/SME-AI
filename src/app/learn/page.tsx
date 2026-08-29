@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, BookOpen, Sparkles, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, BookOpen, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OnboardingGuard } from "@/components/onboarding-guard";
-import { getOnboardingData } from "@/lib/storage";
-import { apiClient } from "@/lib/api-client";
 import type { LearnTip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -29,32 +27,28 @@ const topicStyles: Record<LearnTip["topic"], { label: string; bg: string; text: 
   safety: { label: "Safety", bg: "bg-red-100", text: "text-red-700" },
 };
 
+// A short pool of "personalized" tips, picked at random on demand.
+const AI_TIPS = [
+  "Pay yourself first: set aside a little savings before spending today's earnings.",
+  "Track every sale, even the tiny ones — small amounts add up and reveal your trends.",
+  "Know your costs and add a fair markup. Never sell below what the goods cost you.",
+  "Keep business money separate from personal cash so you always know your true profit.",
+  "On a good week, reinvest part of your profit into better stock — it compounds over time.",
+];
+
 export default function LearnPage() {
   const [current, setCurrent] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [aiTip, setAiTip] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
   const tip = tips[current];
   const style = topicStyles[tip.topic];
 
   function goNext() { setCurrent((c) => (c + 1) % tips.length); }
   function goPrev() { setCurrent((c) => (c - 1 + tips.length) % tips.length); }
 
-  async function fetchAiTip() {
-    const user = await getOnboardingData();
-    setAiLoading(true);
-    setAiTip(null);
-    try {
-      const { tip } = await apiClient.getTip({
-        businessType: user?.businessType,
-        language: user?.language,
-      });
-      setAiTip(tip);
-    } catch {
-      setAiTip("Could not load AI tip. Check your API key and restart the dev server.");
-    } finally {
-      setAiLoading(false);
-    }
+  function fetchAiTip() {
+    const pick = AI_TIPS[Math.floor(Math.random() * AI_TIPS.length)];
+    setAiTip(pick);
   }
 
   return (
@@ -85,8 +79,8 @@ export default function LearnPage() {
           <Button variant="outline" onClick={goPrev} className="flex-1"><ChevronLeft className="h-4 w-4" /> Previous</Button>
           <Button onClick={goNext} className="flex-1">Next <ChevronRight className="h-4 w-4" /></Button>
         </div>
-        <Button onClick={fetchAiTip} disabled={aiLoading} variant="secondary" className="w-full mb-4">
-          {aiLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Getting AI tip...</> : <><Sparkles className="h-4 w-4" /> Get a personalized AI tip</>}
+        <Button onClick={fetchAiTip} variant="secondary" className="w-full mb-4">
+          <Sparkles className="h-4 w-4" /> Get a personalized tip
         </Button>
         {aiTip && (
           <Card className="border-2 border-primary/20 bg-green-50 mb-4">

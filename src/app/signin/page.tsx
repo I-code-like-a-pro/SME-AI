@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { apiClient } from "@/lib/api-client";
+import { signIn } from "@/lib/storage";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -32,7 +32,7 @@ export default function SignInPage() {
 
     setLoading(true);
     try {
-      await apiClient.auth.signIn(email.trim(), password);
+      await signIn(email.trim());
       router.push("/dashboard");
     } catch (err) {
       setError(

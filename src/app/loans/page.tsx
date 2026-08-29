@@ -5,8 +5,7 @@ import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OnboardingGuard } from "@/components/onboarding-guard";
-import { getOnboardingData, getSales } from "@/lib/storage";
-import { apiClient } from "@/lib/api-client";
+import { getSales } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 interface AiLoan {
@@ -30,18 +29,35 @@ export default function LoansPage() {
 
   useEffect(() => {
     async function load() {
-      const user = await getOnboardingData();
       setLoading(true);
       setError(null);
       try {
-        const { loans } = await apiClient.getLoanRecommendation({
-          sales: await getSales(),
-          businessType: user?.businessType,
-          language: user?.language,
-        });
-        setLoans(loans ?? []);
+        const salesCount = (await getSales()).length;
+        setLoans([
+          {
+            name: "Starter Micro-Loan",
+            amount: "₦20,000",
+            reason: "A small first loan to smooth cash flow and top up your stock.",
+            eligibility: salesCount >= 3 ? "High" : "Medium",
+            repayment: "₦2,200 / week for 10 weeks",
+          },
+          {
+            name: "Growth Loan",
+            amount: "₦75,000",
+            reason: "For expanding your stock once you have a steady sales history.",
+            eligibility: salesCount >= 10 ? "Medium" : "Low",
+            repayment: "₦8,500 / week for 10 weeks",
+          },
+          {
+            name: "Working Capital Line",
+            amount: "₦150,000",
+            reason: "Flexible credit for established traders with consistent revenue.",
+            eligibility: "Low",
+            repayment: "Flexible — you pay interest only on what you use",
+          },
+        ]);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not load AI loan advice");
+        setError(err instanceof Error ? err.message : "Could not load loan advice");
       } finally {
         setLoading(false);
       }

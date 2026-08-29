@@ -4,7 +4,7 @@
 
 It speaks to informal-sector business owners in their own language — English, Nigerian Pidgin, Swahili, or Hindi — helping them track finances and understand their business health. It doesn't ask owners to change how they work: you speak a sale the way you'd say it out loud, and the app does the rest.
 
-> **⚠️ Backend status — read this first.** This repository is currently a **frontend-only** build. All former server functionality (Supabase auth + database, the Groq AI calls, Tavily web search, and every `/api/*` route) has been **removed** in preparation for migrating to a separate backend. Authentication, sales, and onboarding now run entirely in the browser via `localStorage`, and the AI-flavoured features (assistant, insights, tips, loan advice) return **hardcoded placeholder data**. Everything that used to hit a server now goes through a single seam — [`src/lib/api-client.ts`](src/lib/api-client.ts) — which is where you wire your real backend. See [Connecting a Backend](#connecting-a-backend).
+> **⚠️ Frontend-only build — read this first.** This repository is a **pure frontend**: there is no server, database, or AI provider. All former server functionality (Supabase auth + database, the Groq AI calls, Tavily web search, and every `/api/*` route) has been **removed**. Authentication, sales, onboarding, and conversations now run entirely in the browser via `localStorage`, and the AI-flavoured features (assistant, insights, tips, loan advice) return **hardcoded data** written directly into each page. There is no backend seam to configure — see [Where the Data Comes From](#where-the-data-comes-from).
 
 ---
 
@@ -15,7 +15,7 @@ It speaks to informal-sector business owners in their own language — English, 
 - [How It Works (Architecture)](#how-it-works-architecture)
 - [Prerequisites](#prerequisites)
 - [Getting Started (Run Locally)](#getting-started-run-locally)
-- [Connecting a Backend](#connecting-a-backend)
+- [Where the Data Comes From](#where-the-data-comes-from)
 - [Available Scripts](#available-scripts)
 - [Project Structure](#project-structure)
 - [Feature Reference (Every Page)](#feature-reference-every-page)
@@ -39,7 +39,7 @@ It speaks to informal-sector business owners in their own language — English, 
 | 🏦 **Micro-Loan Advice** | Loan suggestions with eligibility ratings. | ⚠️ **Stub** — hardcoded loans (eligibility varies with your sales count) |
 | 📚 **Learn** | Swipeable financial-literacy tip cards, plus an on-demand "personalized" tip. | ✅ Cards are real; ⚠️ the AI tip is a hardcoded stub |
 
-The ⚠️ items are exactly the surfaces your backend will bring to life — each is a method in [`src/lib/api-client.ts`](src/lib/api-client.ts).
+The ⚠️ items return **hardcoded data** defined directly in each page — see [Where the Data Comes From](#where-the-data-comes-from). They're the natural places to plug in a real backend later.
 
 ---
 
@@ -66,14 +66,14 @@ There is **no backend, database, AI provider, or API key** in this build. Nothin
 
 **Everything runs in the browser.** Profiles, sales, the local session, and conversation metadata are all read from and written to `localStorage`. The app is fully usable offline and needs no configuration to boot.
 
-**One seam to the outside world.** Every operation that *used to* hit a server now goes through [`src/lib/api-client.ts`](src/lib/api-client.ts). Each method there returns hardcoded or `localStorage`-backed data and is annotated with a `// TODO(backend)` comment naming the endpoint it should eventually call. When your backend is ready, you replace those method bodies with `fetch()` calls — **the UI never changes, only this one file does.**
+**No backend, no seam.** Every operation that *used to* hit a server is now handled locally. Persistent data (session, profile, sales, conversations) lives in `localStorage` through [`src/lib/storage.ts`](src/lib/storage.ts); the AI-flavoured surfaces (insights, tips, loans, assistant replies) are **hardcoded directly in their pages**. Nothing makes a network request.
 
 **Two guards wrap the app** (in [`src/app/layout.tsx`](src/app/layout.tsx)):
 
 - **`AuthGuard`** ([`src/components/auth-guard.tsx`](src/components/auth-guard.tsx)) — allows `/`, `/signin`, and `/signup` for anyone; redirects users without a local session away from every other route to `/signin`.
 - **`OnboardingGuard`** ([`src/components/onboarding-guard.tsx`](src/components/onboarding-guard.tsx)) — used inside the authenticated pages; if a signed-in user has no saved profile, it redirects them to `/onboarding`.
 
-Auth state is held in [`src/lib/auth-context.tsx`](src/lib/auth-context.tsx) (`useAuth()` → `{ user, loading, signOut }`). The api-client dispatches a `sme-ai:auth-changed` event on sign-in/out so the context updates immediately, and it also listens to the `storage` event to stay in sync across browser tabs.
+Auth state is held in [`src/lib/auth-context.tsx`](src/lib/auth-context.tsx) (`useAuth()` → `{ user, loading, signOut }`). [`src/lib/storage.ts`](src/lib/storage.ts) dispatches a `sme-ai:auth-changed` event on sign-in/out so the context updates immediately, and `auth-context` also listens to the browser `storage` event to stay in sync across tabs.
 
 **Sale parsing is deterministic (no AI needed).** [`src/lib/parse-sale.ts`](src/lib/parse-sale.ts) converts spoken/typed English ("sold ten bags of rice for fifty") into a structured `{ description, amount, quantity, item }` using word-to-digit conversion and regex — fast, free, and offline-capable. This stays client-side even after you add a backend.
 
@@ -122,28 +122,27 @@ npm start
 
 ---
 
-## Connecting a Backend
+## Where the Data Comes From
 
-All backend wiring happens in **one file**: [`src/lib/api-client.ts`](src/lib/api-client.ts). Replace each method body with a `fetch()` to your API. The argument and return shapes are already exactly what the components expect, so no component needs to change.
+There is **no backend and no single API layer** — data is either read from `localStorage` or hardcoded directly in the page that uses it. Here's where each piece lives:
 
-| api-client method | Suggested endpoint | Current stub behaviour |
+| Feature | Source | Where it lives |
 | --- | --- | --- |
-| `auth.getCurrentUser()` | `GET /auth/me` | Reads the `sme-ai-user` key from `localStorage`. |
-| `auth.signUp(email, password)` | `POST /auth/signup` | Creates a local user object; **password is ignored**. |
-| `auth.signIn(email, password)` | `POST /auth/login` | Creates/loads a local user; **password is ignored**. |
-| `auth.signOut()` | `POST /auth/logout` | Clears the local session. |
-| `conversations.list()` | `GET /conversations` | Reads the `sme-ai-conversations` key. |
-| `conversations.create(title)` | `POST /conversations` | Prepends a conversation to `localStorage`. |
-| `conversations.messages(id)` | `GET /conversations/:id/messages` | Returns `[]` (per-conversation history isn't persisted offline). |
-| `getInsights({ sales, language })` | `POST /ai/insights` | Returns 2–3 hardcoded strings (or `[]` when there are no sales). |
-| `getTip({ businessType, language })` | `POST /ai/tip` | Returns one random tip from a fixed list. |
-| `getLoanRecommendation({ sales, businessType, language })` | `POST /ai/loan-recommendation` | Returns 3 hardcoded loans; eligibility scales with sales count. |
-| `sendAssistantMessage({ messages, context })` | `POST /ai/assistant` | Returns a canned "offline mode" reply. |
-| `parseSale(text)` | — (stays client-side) | Runs `parseSaleInput` locally; keep it here even with a backend. |
+| Session (get / sign in / sign up / sign out) | `localStorage` (`sme-ai-user`) | [`src/lib/storage.ts`](src/lib/storage.ts) |
+| Profile (onboarding) | `localStorage` (`sme-ai-onboarding`) | [`src/lib/storage.ts`](src/lib/storage.ts) |
+| Sales | `localStorage` (`sme-ai-sales`) | [`src/lib/storage.ts`](src/lib/storage.ts) |
+| Conversations | `localStorage` (`sme-ai-conversations`) | [`src/lib/storage.ts`](src/lib/storage.ts) |
+| Dashboard insights | Hardcoded (varies with your sales count) | [`src/app/dashboard/page.tsx`](src/app/dashboard/page.tsx) |
+| "Personalized" learn tip | Hardcoded `AI_TIPS` list, random pick | [`src/app/learn/page.tsx`](src/app/learn/page.tsx) |
+| Loan recommendations | Hardcoded (eligibility scales with sales count) | [`src/app/loans/page.tsx`](src/app/loans/page.tsx) |
+| Assistant chat reply | Hardcoded canned "offline mode" reply | [`src/app/assistant/page.tsx`](src/app/assistant/page.tsx) |
+| Sale parsing | Real, deterministic (offline) | [`src/lib/parse-sale.ts`](src/lib/parse-sale.ts) |
 
-Onboarding and sale **persistence** live in [`src/lib/storage.ts`](src/lib/storage.ts) (also `localStorage`-backed). If your backend should own sales/profiles too, point those functions at it as well — they're already `async`, so their call sites won't change.
+**Persistence helpers** in [`src/lib/storage.ts`](src/lib/storage.ts) are all `async`, so their call sites won't change if you later back them with a real API.
 
-> When you add a backend URL or other config, put it in `.env.local` (e.g. `NEXT_PUBLIC_API_URL=...`). The file currently holds only a commented placeholder.
+### Adding a backend later
+
+There's no seam file to swap — you'd replace the hardcoded arrays in the pages above with `fetch()` calls, and point the `localStorage` helpers in `storage.ts` at your API. Put any backend URL in `.env.local` (e.g. `NEXT_PUBLIC_API_URL=...`); it currently holds only a commented placeholder.
 
 ---
 
@@ -184,13 +183,12 @@ src/
 │   ├── floating-log.tsx          # ⚠️ Unfinished, unused stub (not mounted anywhere)
 │   └── ui/                       # shadcn/ui primitives (button, card, input, label, progress, tabs)
 ├── lib/
-│   ├── api-client.ts             # ★ THE backend seam — hardcoded stubs + TODO(backend) markers
-│   ├── storage.ts                # localStorage-only profile + sales persistence
+│   ├── storage.ts                # localStorage: session, profile, sales, conversations
 │   ├── parse-sale.ts             # Natural-language sale parser + words→digits
 │   ├── parse-sale.test.ts        # Vitest unit tests for the parser
 │   ├── auth-context.tsx          # React context: current user, loading, signOut
 │   ├── language.ts               # Language label → prompt string mapping
-│   ├── types.ts                  # Shared types + business types / languages constants
+│   ├── types.ts                  # Shared types (incl. AuthUser, Conversation, ChatMessage) + constants
 │   └── utils.ts                  # cn(), formatCurrency(), formatDate()
 └── types/
     └── speech.d.ts               # Web Speech API type declarations
@@ -204,10 +202,10 @@ src/
 Public marketing page. Shows the product pitch, a stat row, and feature cards. If you already have a local session the CTAs change to "Go to Dashboard"; otherwise they point to **Get Started** (`/signup`) and **Sign In** (`/signin`).
 
 ### Sign Up — `/signup`
-Email + password + confirm-password form with client-side validation (non-empty email, password ≥ 6 chars, matching confirmation). On success it creates a **local session** (`apiClient.auth.signUp` — the password is not checked or stored) and redirects to **`/onboarding`**.
+Email + password + confirm-password form with client-side validation (non-empty email, password ≥ 6 chars, matching confirmation). On success it creates a **local session** (`signUp` in `storage.ts` — the password is not checked or stored) and redirects to **`/onboarding`**.
 
 ### Sign In — `/signin`
-Email + password form. On success it creates/loads a **local session** (`apiClient.auth.signIn` — again, no real credential check) and redirects to **`/dashboard`**.
+Email + password form. On success it creates/loads a **local session** (`signIn` in `storage.ts` — again, no real credential check) and redirects to **`/dashboard`**.
 
 ### Onboarding — `/onboarding`
 A 3-step wizard with a progress bar:
@@ -222,7 +220,7 @@ The authenticated home screen:
 - **Localized greeting** using your name and language.
 - **Sales summary card**: Today, This Week, and This Month totals (computed in `getSalesSummary`).
 - **Chat CTA** and **Quick Actions** (Ask AI, Log Sale, Insights).
-- **AI Insights**: 2–3 short observations from `apiClient.getInsights` — **currently hardcoded**, with loading/empty states preserved for when a backend is connected.
+- **AI Insights**: 2–3 short observations **hardcoded in the page** (they vary with your sales count), with loading/empty states preserved for when a backend is connected.
 - **Recent Sales**: your five most recent entries. **Empty state**: a "Log Your First Sale" prompt.
 
 ### Log a Sale — `/log`
@@ -236,15 +234,15 @@ Parsing is handled by `parseSaleInput`, which understands spelled-out numbers ("
 Revenue visualization built with Recharts: **This Week** total, your **Best Day**, a **Weekly** bar chart (last 7 days) and a **Monthly** bar chart (last 4 weeks). Friendly empty states when there's no data. Fully client-side — no backend needed.
 
 ### Micro-Loans — `/loans`
-Requests loan suggestions from `apiClient.getLoanRecommendation`. Each card shows the loan name, amount, an eligibility badge (**High** / **Medium** / **Low**), the rationale, and a suggested repayment. **The loans are hardcoded**, though eligibility shifts with how many sales you've logged. A disclaimer notes these are guidance, not real offers.
+Shows loan suggestions **hardcoded in the page**. Each card shows the loan name, amount, an eligibility badge (**High** / **Medium** / **Low**), the rationale, and a suggested repayment. Eligibility shifts with how many sales you've logged. A disclaimer notes these are guidance, not real offers.
 
 ### Learn — `/learn`
-A financial-literacy micro-course: **8 swipeable tip cards** across five topics (Savings, Loans, Budgeting, Growth, Safety) with pagination dots and touch-swipe support, plus **topic filters**. The **"Get a personalized AI tip"** button calls `apiClient.getTip` — **currently a random pick from a fixed list**.
+A financial-literacy micro-course: **8 swipeable tip cards** across five topics (Savings, Loans, Budgeting, Growth, Safety) with pagination dots and touch-swipe support, plus **topic filters**. The **"Get a personalized tip"** button picks a random entry from a fixed `AI_TIPS` list defined in the page.
 
 ### AI Assistant — `/assistant`
 A chat interface with your business context assembled client-side:
-- **Inline sale logging**: before treating your text as a chat message, the app runs it through `apiClient.parseSale` (real, deterministic). If it looks like a sale, a **"Parsed sale"** confirmation card appears so you can save it to your local sales instead of chatting.
-- **Chat replies** come from `apiClient.sendAssistantMessage` — **currently a canned "offline mode" placeholder** that references your name and sales count.
+- **Inline sale logging**: before treating your text as a chat message, the app runs it through `parseSaleInput` (real, deterministic). If it looks like a sale, a **"Parsed sale"** confirmation card appears so you can save it to your local sales instead of chatting.
+- **Chat replies** are a **canned "offline mode" placeholder** (hardcoded in the page) that references your name and sales count.
 - **Quick prompts**: one-tap starters.
 - **Conversations**: a desktop sidebar lists conversations stored in `localStorage`; per-conversation message history is not persisted offline (that's a backend concern).
 
@@ -257,7 +255,7 @@ A chat interface with your business context assembled client-side:
 
 ## Data Model
 
-Shared types are defined in [`src/lib/types.ts`](src/lib/types.ts); auth/conversation/loan types live in [`src/lib/api-client.ts`](src/lib/api-client.ts).
+Shared types are defined in [`src/lib/types.ts`](src/lib/types.ts) (including `AuthUser`, `Conversation`, and `ChatMessage`). The loan card type (`AiLoan`) is local to [`src/app/loans/page.tsx`](src/app/loans/page.tsx).
 
 - **`OnboardingData`** — `{ name, businessType, language, completedAt }`
   - `BusinessType`: `retail | food | services | agriculture | other`
@@ -289,13 +287,13 @@ The app is a standard Next.js 14 project and deploys cleanly to **[Vercel](https
 2. Import the project into Vercel (or your host of choice).
 3. Deploy. No environment variables are required for this frontend-only build.
 
-Because all data lives in each visitor's browser `localStorage`, deployments are stateless — there is nothing to provision, and different browsers/devices do not share data. That changes once you connect a backend via [`src/lib/api-client.ts`](src/lib/api-client.ts).
+Because all data lives in each visitor's browser `localStorage`, deployments are stateless — there is nothing to provision, and different browsers/devices do not share data. That changes only if you later add a backend.
 
 ---
 
 ## Known Limitations & Notes
 
-- **Frontend-only build.** There is no server, database, or AI. Accounts are unverified local sessions, and the assistant/insights/tips/loan features return placeholder data until a backend is wired into [`src/lib/api-client.ts`](src/lib/api-client.ts).
+- **Frontend-only build.** There is no server, database, or AI. Accounts are unverified local sessions, and the assistant/insights/tips/loan features return hardcoded placeholder data.
 - **Data is per-browser.** Everything is in `localStorage`, so data doesn't sync across devices or survive clearing site data.
 - **`src/components/floating-log.tsx` is an unfinished, unused stub** — it declares hooks but renders nothing and isn't mounted anywhere. Finish it or delete it before shipping.
 - **Voice logging** relies on the browser Web Speech API (best support in Chromium-based browsers); recognition is fixed to `en-US`. Unsupported browsers fall back to text entry.

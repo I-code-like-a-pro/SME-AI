@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { apiClient, type AuthUser } from "./api-client";
+import { getUser, signOut as clearSession } from "./storage";
+import type { AuthUser } from "./types";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -20,7 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function refresh() {
       try {
-        const current = await apiClient.auth.getCurrentUser();
+        const current = await getUser();
         if (mounted) setUser(current);
       } catch (error) {
         console.error("Auth check failed:", error);
@@ -34,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Keep auth state in sync after sign-in/out and across browser tabs.
     function onAuthChanged() {
-      apiClient.auth.getCurrentUser().then((u) => {
+      getUser().then((u) => {
         if (mounted) setUser(u);
       });
     }
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function handleSignOut() {
     try {
-      await apiClient.auth.signOut();
+      await clearSession();
       setUser(null);
     } catch (error) {
       console.error("Sign out failed:", error);
