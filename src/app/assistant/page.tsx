@@ -6,20 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { OnboardingGuard } from "@/components/onboarding-guard";
-import { getOnboardingData, getSales, getSalesSummary, saveSale } from "@/lib/storage";
-import type { OnboardingData } from "@/lib/types";
+import {
+  getOnboardingData,
+  getSalesSummary,
+  saveSale,
+  getConversations,
+  createConversation,
+} from "@/lib/storage";
+import { parseSaleInput, type ParsedSale } from "@/lib/parse-sale";
+import type { ChatMessage, Conversation, OnboardingData } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
-interface Conversation {
-  id: string;
-  title: string;
-  createdAt: string;
-}
 
 const QUICK_PROMPTS = [
   "How am I doing this week?",
@@ -28,22 +24,14 @@ const QUICK_PROMPTS = [
   "What should I restock?",
 ];
 
-async function createConversation(title: string): Promise<Conversation> {
-  return { id: crypto.randomUUID(), title, createdAt: new Date().toISOString() };
-}
-
-async function fetchMessages(conversationId: string): Promise<any[]> {
-  return [];
-}
-
 export default function AssistantPage() {
   const [user, setUser] = useState<OnboardingData | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [parsedSalePending, setParsedSalePending] = useState<any | null>(null);
+  const [parsedSalePending, setParsedSalePending] = useState<ParsedSale | null>(null);
   const [initialized, setInitialized] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -60,13 +48,9 @@ export default function AssistantPage() {
         ]);
         setInitialized(true);
       }
-      // load conversations list (client-side)
       try {
-        const res = await fetch("/api/conversations");
-        if (res.ok) {
-          const json = await res.json();
-          setConversations(json.conversations ?? []);
-        }
+        const list = await getConversations();
+        setConversations(list);
       } catch (err) {
         console.warn("Could not load conversations", err);
       }
@@ -81,27 +65,15 @@ export default function AssistantPage() {
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return;
 
-    try {
-      const parseRes = await fetch("/api/parse-sale", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ text: text.trim() }),
-      });
-
-      if (parseRes.ok) {
-        const parsed = await parseRes.json();
-        const p = parsed?.parsed;
-        if (parsed?.success && p && (Number(p.amount) > 0 || (p.quantity && Number(p.quantity) > 0))) {
-          setParsedSalePending(p);
-          setInput("");
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn("parse-sale failed", err);
+    // Try to interpret the message as a sale first (fully client-side).
+    const parsed = parseSaleInput(text.trim());
+    if (parsed && (Number(parsed.amount) > 0 || (parsed.quantity && Number(parsed.quantity) > 0))) {
+      setParsedSalePending(parsed);
+      setInput("");
+      return;
     }
 
-    const userMessage: Message = { role: "user", content: text.trim() };
+    const userMessage: ChatMessage = { role: "user", content: text.trim() };
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
     setInput("");
@@ -109,68 +81,22 @@ body: JSON.stringify({ text: text.trim() }),
 
     try {
       const summary = await getSalesSummary();
-      const recentSales = await getSales();
-      // ensure a conversation exists — create one if not selected
+
+      // Ensure a conversation exists — create one if none selected.
       if (!selectedConversationId) {
         try {
-          const cRes = await fetch("/api/conversations", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ title: "Conversation" }),
-          });
-          if (cRes.ok) {
-            const j = await cRes.json();
-            setSelectedConversationId(j.conversation.id);
-          }
+          const conv = await createConversation("Conversation");
+          setConversations((prev) => [conv, ...prev]);
+          setSelectedConversationId(conv.id);
         } catch (err) {
           console.warn("Could not create conversation", err);
         }
       }
 
-      const res = await fetch("/api/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            messages: nextMessages,
-            conversationId: selectedConversationId,
-            context: {
-            name: user?.name,
-            businessType: user?.businessType,
-            language: user?.language,
-            salesSummary: {
-              today: summary.today,
-              week: summary.week,
-              month: summary.month,
-              totalSales: summary.totalSales,
-            },
-            recentSales: recentSales.slice(0, 10),
-          },
-        }),
-      });
+      const who = user?.name ? `${user.name}, ` : "";
+      const reply = `Thanks ${who}I've noted that. I'm running in offline demo mode, so I can't give live tailored advice yet — but you have ${summary.totalSales} sale${summary.totalSales === 1 ? "" : "s"} logged so far. Keep logging and your dashboard insights will get sharper.`;
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error ?? "Something went wrong");
-      }
-
-      // If we have a conversation id, refresh messages from server so persisted messages appear
-      if (selectedConversationId) {
-        try {
-          const mRes = await fetch(`/api/conversations/${selectedConversationId}/messages`);
-          if (mRes.ok) {
-            const jm = await mRes.json();
-            setMessages(jm.messages?.map((m: any) => ({ role: m.role, content: m.content })) ?? []);
-          } else {
-            setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-          }
-        } catch (err) {
-          console.warn("Failed to refresh messages", err);
-          setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-        }
-      } else {
-        setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-      }
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (error) {
       const msg =
         error instanceof Error ? error.message : "Could not reach the assistant";
@@ -178,7 +104,7 @@ body: JSON.stringify({ text: text.trim() }),
         ...prev,
         {
           role: "assistant",
-          content: `Sorry, I couldn't respond right now. ${msg}. Check that ANTHROPIC_API_KEY is in .env.local and restart the dev server.`,
+          content: `Sorry, I couldn't respond right now. ${msg}.`,
         },
       ]);
     } finally {
@@ -190,34 +116,17 @@ body: JSON.stringify({ text: text.trim() }),
     if (!parsedSalePending) return;
     try {
       setLoading(true);
-      const res = await fetch("/api/log-sale", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsedSalePending),
+      await saveSale({
+        description: parsedSalePending.description,
+        amount: Number(parsedSalePending.amount),
+        quantity: parsedSalePending.quantity,
+        item: parsedSalePending.item,
       });
-      if (res.status === 401) {
-        // Not authenticated on server — save locally using client-side storage helper
-        await saveSale({
-          description: parsedSalePending.description,
-          amount: Number(parsedSalePending.amount),
-          quantity: parsedSalePending.quantity,
-          item: parsedSalePending.item,
-        });
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: "Saved locally — you're not signed in. I will sync when you sign in." },
-        ]);
-        setParsedSalePending(null);
-      } else {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to save sale");
-
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: "Saved your sale — nice! I can use this to give better advice." },
-        ]);
-        setParsedSalePending(null);
-      }
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Saved your sale — nice! I can use this to give better advice." },
+      ]);
+      setParsedSalePending(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
       setMessages((prev) => [
@@ -256,10 +165,9 @@ body: JSON.stringify({ text: text.trim() }),
               {conversations.map((c) => (
                 <button
                   key={c.id}
-                  onClick={async () => {
+                  onClick={() => {
                     setSelectedConversationId(c.id);
-                    const msgs = await fetchMessages(c.id);
-                    setMessages(msgs.map((m: any) => ({ role: m.role, content: m.content })));
+                    setMessages([]);
                   }}
                   className={cn(
                     "w-full text-left rounded-md px-3 py-2 border-2",
@@ -282,7 +190,7 @@ body: JSON.stringify({ text: text.trim() }),
               </div>
               <div>
                 <h1 className="text-xl font-extrabold text-gray-900">AI Assistant</h1>
-                <p className="text-xs text-muted-foreground">Your business advisor, powered by Claude</p>
+                <p className="text-xs text-muted-foreground">Your personal business advisor</p>
               </div>
             </div>
           </div>

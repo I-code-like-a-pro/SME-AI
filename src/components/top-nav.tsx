@@ -9,6 +9,7 @@ import {
   GraduationCap,
   Banknote,
   Sparkles,
+  Package,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,12 +18,10 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/assistant", label: "AI Assistant", icon: Sparkles },
-  { href: "/log", label: "Log Sale", icon: PlusCircle },
+  { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/insights", label: "Insights", icon: BarChart3 },
-    { href: "/loans", label: "Loans", icon: Banknote },
-    { href: "/learn", label: "Learn", icon: GraduationCap },
-  ];
+  { href: "/learn", label: "Learn", icon: GraduationCap },
+];
 
 const hiddenRoutes = ["/", "/onboarding", "/signin", "/signup"];
 

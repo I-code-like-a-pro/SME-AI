@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { signUp } from "@/lib/supabase/auth";
+import { signUp } from "@/lib/storage";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -38,7 +38,7 @@ export default function SignUpPage() {
 
     setLoading(true);
     try {
-      await signUp(email.trim(), password);
+      await signUp(email.trim());
       router.push("/onboarding");
     } catch (err) {
       setError(

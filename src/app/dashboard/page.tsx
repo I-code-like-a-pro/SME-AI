@@ -49,29 +49,21 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadInsights() {
-      const data = await getOnboardingData();
-      const sales = await getSales();
       setInsightsLoading(true);
       setInsightsError(null);
 
-      try {
-        const res = await fetch("/api/get-insights", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sales,
-            language: data?.language ?? "english",
-          }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Failed to load insights");
-        setInsights(json.insights ?? []);
-      } catch (error) {
-        setInsightsError(error instanceof Error ? error.message : "Could not load AI insights");
-        setInsights([]);
-      } finally {
-        setInsightsLoading(false);
-      }
+      const sales = await getSales();
+      const generated =
+        sales.length === 0
+          ? []
+          : [
+              `You've logged ${sales.length} sale${sales.length === 1 ? "" : "s"}. Recording every sale — even the small ones — is the habit that unlocks better advice.`,
+              "Try setting aside a small part of each day's takings as savings before you restock.",
+              "Keep logging daily to spot your best-selling items and your busiest days.",
+            ];
+
+      setInsights(generated);
+      setInsightsLoading(false);
     }
 
     loadInsights();

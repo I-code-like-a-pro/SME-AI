@@ -1,8 +1,10 @@
 # SME AI
 
-**SME AI is a voice-first, AI-powered business companion for micro-traders and small business owners.**
+**SME AI is a voice-first business companion for micro-traders and small business owners.**
 
-It speaks to informal-sector business owners in their own language — English, Nigerian Pidgin, Swahili, or Hindi — helping them track finances, understand their business health, and, for the first time in their lives, build a verifiable financial identity that unlocks access to credit, insurance, and government support programmes. It doesn't ask owners to change how they work. It learns from how they already operate: you speak a sale the way you'd say it out loud, and the app does the rest.
+It speaks to informal-sector business owners in their own language — English, Nigerian Pidgin, Swahili, or Hindi — helping them track finances and understand their business health. It doesn't ask owners to change how they work: you speak a sale the way you'd say it out loud, and the app does the rest.
+
+> **⚠️ Frontend-only build — read this first.** This repository is a **pure frontend**: there is no server, database, or AI provider. All former server functionality (Supabase auth + database, the Groq AI calls, Tavily web search, and every `/api/*` route) has been **removed**. Authentication, sales, onboarding, and conversations now run entirely in the browser via `localStorage`, and the AI-flavoured features (assistant, insights, tips, loan advice) return **hardcoded data** written directly into each page. There is no backend seam to configure — see [Where the Data Comes From](#where-the-data-comes-from).
 
 ---
 
@@ -13,12 +15,10 @@ It speaks to informal-sector business owners in their own language — English, 
 - [How It Works (Architecture)](#how-it-works-architecture)
 - [Prerequisites](#prerequisites)
 - [Getting Started (Run Locally)](#getting-started-run-locally)
-- [Environment Variables](#environment-variables)
-- [Supabase Setup](#supabase-setup)
+- [Where the Data Comes From](#where-the-data-comes-from)
 - [Available Scripts](#available-scripts)
 - [Project Structure](#project-structure)
 - [Feature Reference (Every Page)](#feature-reference-every-page)
-- [API Reference (Every Endpoint)](#api-reference-every-endpoint)
 - [Data Model](#data-model)
 - [Deployment](#deployment)
 - [Known Limitations & Notes](#known-limitations--notes)
@@ -27,16 +27,19 @@ It speaks to informal-sector business owners in their own language — English, 
 
 ## Feature Overview
 
-| Feature | What it does |
-| --- | --- |
-| 🎙️ **Voice Logging** | Record a sale just by speaking — "sold 10 bags of rice for 5000" — no typing needed (browser Web Speech API). |
-| ⌨️ **Text Logging** | Type sales in plain language; a live preview shows the detected item, quantity, and amount before saving. |
-| 📊 **Smart Insights** | AI-generated, plain-language observations about your sales, plus weekly/monthly revenue charts. |
-| 💬 **AI Assistant** | Chat with a business advisor that knows your sales history and answers in your language. It can even log a sale mid-conversation. |
-| 🏦 **Micro-Loan Advice** | AI-matched micro-loan suggestions with eligibility ratings based on your logged sales and business type. |
-| 📚 **Learn** | Swipeable financial-literacy tips (savings, loans, budgeting, growth, safety) plus on-demand personalized AI tips. |
-| 🌍 **Multi-language** | English, Nigerian Pidgin, Swahili, and Hindi — chosen during onboarding and used across AI responses and greetings. |
-| 🔐 **Accounts & Sync** | Email/password accounts via Supabase, with a local-first storage model that works offline and syncs when signed in. |
+| Feature | What it does | Status |
+| --- | --- | --- |
+| 🎙️ **Voice Logging** | Record a sale just by speaking — "sold 10 bags of rice for 5000" — no typing needed (browser Web Speech API). | ✅ Fully working (client-side) |
+| ⌨️ **Text Logging** | Type sales in plain language; a live preview shows the detected item, quantity, and amount before saving. | ✅ Fully working (client-side) |
+| 📊 **Revenue Charts** | Weekly and monthly revenue bar charts plus best-day / weekly totals, computed from your logged sales. | ✅ Fully working (client-side) |
+| 🌍 **Multi-language** | English, Nigerian Pidgin, Swahili, and Hindi — chosen during onboarding and used for greetings. | ✅ Fully working (client-side) |
+| 🔐 **Accounts** | Email/password sign-up and sign-in. | ⚠️ **Stub** — local session only, no real auth or password checking |
+| 💬 **AI Assistant** | Chat UI that can log a sale mid-conversation (parsing is real and client-side). | ⚠️ **Stub** — replies are canned placeholders |
+| 🧠 **Smart Insights** | Plain-language observations about your sales. | ⚠️ **Stub** — hardcoded text |
+| 🏦 **Micro-Loan Advice** | Loan suggestions with eligibility ratings. | ⚠️ **Stub** — hardcoded loans (eligibility varies with your sales count) |
+| 📚 **Learn** | Swipeable financial-literacy tip cards, plus an on-demand "personalized" tip. | ✅ Cards are real; ⚠️ the AI tip is a hardcoded stub |
+
+The ⚠️ items return **hardcoded data** defined directly in each page — see [Where the Data Comes From](#where-the-data-comes-from). They're the natural places to plug in a real backend later.
 
 ---
 
@@ -44,34 +47,35 @@ It speaks to informal-sector business owners in their own language — English, 
 
 | Layer | Technology |
 | --- | --- |
-| Framework | [Next.js 14](https://nextjs.org/) (App Router, `"use client"` pages + Route Handlers) |
+| Framework | [Next.js 14](https://nextjs.org/) (App Router, all pages are `"use client"`) |
 | Language | TypeScript 5 (strict mode) |
 | UI runtime | React 18 |
 | Styling | Tailwind CSS 3.4, `tailwindcss-animate`, CSS variables |
-| Components | [shadcn/ui](https://ui.shadcn.com/) primitives built on [Radix UI](https://www.radix-ui.com/) (Dialog, Label, Progress, Select, Tabs, Slot) |
+| Components | [shadcn/ui](https://ui.shadcn.com/) primitives on [Radix UI](https://www.radix-ui.com/) (Button, Card, Input, Label, Progress, Tabs) |
 | Icons | [lucide-react](https://lucide.dev/) |
 | Charts | [Recharts](https://recharts.org/) |
-| Auth & Database | [Supabase](https://supabase.com/) (`@supabase/supabase-js`) — email/password auth + Postgres |
-| AI model | **Groq** — `llama-3.3-70b-versatile` via the OpenAI-compatible Chat Completions API |
-| Web search | [Tavily](https://tavily.com/) (`@tavily/core`) for live web results in the assistant |
 | Voice | Browser **Web Speech API** (`SpeechRecognition` / `webkitSpeechRecognition`) |
+| Persistence | Browser **`localStorage`** (no server, no database) |
+| Tests | [Vitest](https://vitest.dev/) (unit tests for the sale parser) |
 
-> **Note on the AI provider:** the file `src/lib/anthropic.ts` and some on-screen error strings mention "Claude" / `ANTHROPIC_API_KEY` for historical reasons, but the current implementation calls **Groq's** Chat Completions endpoint and reads the **`GROQ_API_KEY`** environment variable. Configure `GROQ_API_KEY` (see below).
+There is **no backend, database, AI provider, or API key** in this build. Nothing calls out to a network service.
 
 ---
 
 ## How It Works (Architecture)
 
-**Local-first with cloud sync.** Every profile and sale is written to the browser's `localStorage` first, so the app is fully usable even without a backend. If Supabase is configured *and* the user is signed in, the same data is also written to Postgres, and any pre-existing local data is migrated up to Supabase on first authenticated load. If Supabase is unreachable or unconfigured, the app silently falls back to local storage. This logic lives in [`src/lib/storage.ts`](src/lib/storage.ts).
+**Everything runs in the browser.** Profiles, sales, the local session, and conversation metadata are all read from and written to `localStorage`. The app is fully usable offline and needs no configuration to boot.
 
-**Two guards wrap the whole app** (in [`src/app/layout.tsx`](src/app/layout.tsx)):
+**No backend, no seam.** Every operation that *used to* hit a server is now handled locally. Persistent data (session, profile, sales, conversations) lives in `localStorage` through [`src/lib/storage.ts`](src/lib/storage.ts); the AI-flavoured surfaces (insights, tips, loans, assistant replies) are **hardcoded directly in their pages**. Nothing makes a network request.
 
-- **`AuthGuard`** — allows `/`, `/signin`, and `/signup` for anyone; redirects unauthenticated users away from every other route to `/signin`.
-- **`OnboardingGuard`** — used inside the authenticated pages; if a signed-in user has no saved profile, it redirects them to `/onboarding`.
+**Two guards wrap the app** (in [`src/app/layout.tsx`](src/app/layout.tsx)):
 
-**AI calls run server-side.** The browser never sees your API keys. Pages call internal Next.js Route Handlers (`/api/*`), which read secrets from the server environment and call Groq/Tavily/Supabase.
+- **`AuthGuard`** ([`src/components/auth-guard.tsx`](src/components/auth-guard.tsx)) — allows `/`, `/signin`, and `/signup` for anyone; redirects users without a local session away from every other route to `/signin`.
+- **`OnboardingGuard`** ([`src/components/onboarding-guard.tsx`](src/components/onboarding-guard.tsx)) — used inside the authenticated pages; if a signed-in user has no saved profile, it redirects them to `/onboarding`.
 
-**Sale parsing is deterministic (no AI needed).** [`src/lib/parse-sale.ts`](src/lib/parse-sale.ts) converts spoken/typed English ("sold ten bags of rice for fifty") into a structured `{ description, amount, quantity, item }` using word-to-digit conversion and regex — fast, free, and offline-capable.
+Auth state is held in [`src/lib/auth-context.tsx`](src/lib/auth-context.tsx) (`useAuth()` → `{ user, loading, signOut }`). [`src/lib/storage.ts`](src/lib/storage.ts) dispatches a `sme-ai:auth-changed` event on sign-in/out so the context updates immediately, and `auth-context` also listens to the browser `storage` event to stay in sync across tabs.
+
+**Sale parsing is deterministic (no AI needed).** [`src/lib/parse-sale.ts`](src/lib/parse-sale.ts) converts spoken/typed English ("sold ten bags of rice for fifty") into a structured `{ description, amount, quantity, item }` using word-to-digit conversion and regex — fast, free, and offline-capable. This stays client-side even after you add a backend.
 
 ---
 
@@ -79,9 +83,8 @@ It speaks to informal-sector business owners in their own language — English, 
 
 - **Node.js 18.17+** (Node 20 LTS recommended — required by Next.js 14)
 - **npm** (ships with Node) — or yarn/pnpm if you prefer
-- A **Supabase** project (optional for a quick local demo, required for accounts & cloud sync)
-- A **Groq API key** (required for all AI features: assistant, insights, tips, loan advice)
-- A **Tavily API key** (optional — enables live web search inside the assistant)
+
+That's it. No API keys, no database, no `.env` setup required to run the app.
 
 ---
 
@@ -100,134 +103,46 @@ cd sme-ai
 npm install
 ```
 
-### 3. Create your environment file
-
-Create a file named **`.env.local`** in the project root (it is git-ignored) and add the variables described in [Environment Variables](#environment-variables):
-
-```bash
-# .env.local
-GROQ_API_KEY=your_groq_api_key
-TAVILY_API_KEY=your_tavily_api_key
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-> The app will still boot without these, but AI features will error and accounts/sync will be disabled until the relevant keys are present. See the per-variable notes below.
-
-### 4. Set up Supabase (for accounts & sync)
-
-Create the required tables and security policies by running the SQL in [Supabase Setup](#supabase-setup) from your Supabase project's **SQL Editor**. Then enable **Email** auth under **Authentication → Providers**.
-
-### 5. Run the development server
+### 3. Run the development server
 
 ```bash
 npm run dev
 ```
 
-Open **http://localhost:3000**. The dev server hot-reloads on file changes.
+Open **http://localhost:3000**. The dev server hot-reloads on file changes. Sign up with any email and password (it creates a local session — nothing is verified), complete onboarding, and start logging sales.
 
-### 6. Build for production (optional)
+### 4. Build for production (optional)
 
 ```bash
 npm run build
 npm start
 ```
 
----
-
-## Environment Variables
-
-All variables are read at runtime on the server (except the `NEXT_PUBLIC_*` ones, which are exposed to the browser by design). Create them in `.env.local`. **Restart the dev server after changing env vars.**
-
-| Variable | Required? | Used by | Purpose |
-| --- | --- | --- | --- |
-| `GROQ_API_KEY` | **Yes** (for AI) | [`src/lib/anthropic.ts`](src/lib/anthropic.ts) | Auth token for Groq's Chat Completions API. Powers the assistant, insights, learn tips, and loan advice. Without it, those endpoints return a 500. |
-| `TAVILY_API_KEY` | Optional | [`src/lib/tavily.ts`](src/lib/tavily.ts) | Enables live web search in the assistant (for restock/pricing/competitor questions) and the `/api/tavily/search` endpoint. If missing, the assistant simply skips web search. |
-| `NEXT_PUBLIC_SUPABASE_URL` | Optional* | [`src/lib/supabase/client.ts`](src/lib/supabase/client.ts) | Your Supabase project URL. Exposed to the browser. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Optional* | [`src/lib/supabase/client.ts`](src/lib/supabase/client.ts) | Supabase anonymous public key. Exposed to the browser. |
-
-\* **Supabase is optional for a local demo but effectively required for real use.** The auth pages (`/signin`, `/signup`) and cloud sync depend on it. If both Supabase variables are absent, `isSupabaseConfigured()` returns `false`, authentication is unavailable, and all data stays in `localStorage` only.
+> **Resetting your data:** because everything lives in `localStorage`, you can wipe all app state by clearing site data for `localhost:3000` in your browser's dev tools, or running `localStorage.clear()` in the console.
 
 ---
 
-## Supabase Setup
+## Where the Data Comes From
 
-The repository does **not** include database migrations. The schema below is derived directly from the columns the app reads and writes (see `src/lib/storage.ts`, `src/lib/conversations.ts`, and `src/app/api/log-sale/route.ts`). Run it in the Supabase **SQL Editor**.
+There is **no backend and no single API layer** — data is either read from `localStorage` or hardcoded directly in the page that uses it. Here's where each piece lives:
 
-Because the browser talks to Supabase with the public anon key, **Row Level Security (RLS) is required** so each user can only see their own rows.
+| Feature | Source | Where it lives |
+| --- | --- | --- |
+| Session (get / sign in / sign up / sign out) | `localStorage` (`sme-ai-user`) | [`src/lib/storage.ts`](src/lib/storage.ts) |
+| Profile (onboarding) | `localStorage` (`sme-ai-onboarding`) | [`src/lib/storage.ts`](src/lib/storage.ts) |
+| Sales | `localStorage` (`sme-ai-sales`) | [`src/lib/storage.ts`](src/lib/storage.ts) |
+| Conversations | `localStorage` (`sme-ai-conversations`) | [`src/lib/storage.ts`](src/lib/storage.ts) |
+| Dashboard insights | Hardcoded (varies with your sales count) | [`src/app/dashboard/page.tsx`](src/app/dashboard/page.tsx) |
+| "Personalized" learn tip | Hardcoded `AI_TIPS` list, random pick | [`src/app/learn/page.tsx`](src/app/learn/page.tsx) |
+| Loan recommendations | Hardcoded (eligibility scales with sales count) | [`src/app/loans/page.tsx`](src/app/loans/page.tsx) |
+| Assistant chat reply | Hardcoded canned "offline mode" reply | [`src/app/assistant/page.tsx`](src/app/assistant/page.tsx) |
+| Sale parsing | Real, deterministic (offline) | [`src/lib/parse-sale.ts`](src/lib/parse-sale.ts) |
 
-```sql
--- PROFILES: one row per user (id == auth user id)
-create table if not exists public.profiles (
-  id           uuid primary key references auth.users (id) on delete cascade,
-  name         text        not null,
-  business_type text       not null,
-  language     text        not null,
-  completed_at timestamptz not null default now()
-);
+**Persistence helpers** in [`src/lib/storage.ts`](src/lib/storage.ts) are all `async`, so their call sites won't change if you later back them with a real API.
 
--- SALES
-create table if not exists public.sales (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid        not null references auth.users (id) on delete cascade,
-  description text        not null,
-  amount      numeric     not null,
-  quantity    integer,
-  item        text,
-  created_at  timestamptz not null default now()
-);
+### Adding a backend later
 
--- CONVERSATIONS
-create table if not exists public.conversations (
-  id         uuid primary key default gen_random_uuid(),
-  user_id    uuid        not null references auth.users (id) on delete cascade,
-  title      text        not null default 'New conversation',
-  created_at timestamptz not null default now()
-);
-
--- MESSAGES
-create table if not exists public.messages (
-  id              uuid primary key default gen_random_uuid(),
-  conversation_id uuid        not null references public.conversations (id) on delete cascade,
-  role            text        not null check (role in ('user','assistant')),
-  content         text        not null,
-  created_at      timestamptz not null default now()
-);
-
--- Enable Row Level Security
-alter table public.profiles      enable row level security;
-alter table public.sales         enable row level security;
-alter table public.conversations enable row level security;
-alter table public.messages      enable row level security;
-
--- Policies: profiles
-create policy "own profile" on public.profiles
-  for all using (auth.uid() = id) with check (auth.uid() = id);
-
--- Policies: sales
-create policy "own sales" on public.sales
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
--- Policies: conversations
-create policy "own conversations" on public.conversations
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
--- Policies: messages (ownership via the parent conversation)
-create policy "own messages" on public.messages
-  for all using (
-    exists (
-      select 1 from public.conversations c
-      where c.id = messages.conversation_id and c.user_id = auth.uid()
-    )
-  ) with check (
-    exists (
-      select 1 from public.conversations c
-      where c.id = messages.conversation_id and c.user_id = auth.uid()
-    )
-  );
-```
-
-Then, under **Authentication → Providers**, enable **Email**. (For a friction-free demo you may also want to disable "Confirm email" so new sign-ups can log in immediately.)
+There's no seam file to swap — you'd replace the hardcoded arrays in the pages above with `fetch()` calls, and point the `localStorage` helpers in `storage.ts` at your API. Put any backend URL in `.env.local` (e.g. `NEXT_PUBLIC_API_URL=...`); it currently holds only a commented placeholder.
 
 ---
 
@@ -239,6 +154,7 @@ Then, under **Authentication → Providers**, enable **Email**. (For a friction-
 | `npm run build` | Create an optimized production build. |
 | `npm start` | Run the production build (run `npm run build` first). |
 | `npm run lint` | Run ESLint (`eslint-config-next`). |
+| `npm test` | Run the Vitest unit tests (currently the sale parser). |
 
 ---
 
@@ -246,48 +162,34 @@ Then, under **Authentication → Providers**, enable **Email**. (For a friction-
 
 ```
 src/
-├── app/                          # Next.js App Router
+├── app/                          # Next.js App Router (all pages are "use client")
 │   ├── layout.tsx                # Root layout: fonts, AuthProvider, guards, nav
 │   ├── page.tsx                  # Public landing page ("/")
 │   ├── globals.css               # Tailwind base + theme CSS variables
-│   ├── signup/page.tsx           # Create account
-│   ├── signin/page.tsx           # Sign in
+│   ├── signup/page.tsx           # Create account (local session)
+│   ├── signin/page.tsx           # Sign in (local session)
 │   ├── onboarding/page.tsx       # 3-step profile wizard
-│   ├── dashboard/page.tsx        # Home: totals, quick actions, AI insights
+│   ├── dashboard/page.tsx        # Home: totals, quick actions, AI insights (stub)
 │   ├── log/page.tsx              # Voice + text sale logging
 │   ├── insights/page.tsx         # Weekly/monthly revenue charts
-│   ├── loans/page.tsx            # AI micro-loan recommendations
-│   ├── learn/page.tsx            # Financial-literacy tips + AI tip
-│   ├── assistant/page.tsx        # AI chat assistant
-│   └── api/                      # Server Route Handlers
-│       ├── assistant/route.ts            # Chat completion (Groq) + Tavily + persistence
-│       ├── parse-sale/route.ts           # NL → structured sale (no AI)
-│       ├── log-sale/route.ts             # Server-side sale upsert to Supabase
-│       ├── get-insights/route.ts         # AI sales insights
-│       ├── get-tip/route.ts              # One AI financial tip
-│       ├── get-loan-recommendation/route.ts  # AI loan suggestions
-│       ├── conversations/route.ts        # List / create conversations
-│       ├── conversations/[id]/messages/route.ts  # List / add messages
-│       └── tavily/search/route.ts        # Rate-limited web-search proxy
+│   ├── loans/page.tsx            # Micro-loan recommendations (stub)
+│   ├── learn/page.tsx            # Financial-literacy tips + AI tip (stub)
+│   └── assistant/page.tsx        # AI chat assistant (stub replies, real sale parsing)
 ├── components/
 │   ├── auth-guard.tsx            # Route protection (public vs. private routes)
 │   ├── onboarding-guard.tsx      # Forces onboarding if profile missing
 │   ├── top-nav.tsx               # Desktop navigation bar
 │   ├── bottom-nav.tsx            # Mobile bottom tab bar
+│   ├── floating-log.tsx          # ⚠️ Unfinished, unused stub (not mounted anywhere)
 │   └── ui/                       # shadcn/ui primitives (button, card, input, label, progress, tabs)
 ├── lib/
-│   ├── anthropic.ts              # Groq API client (callClaude, sanitizeModelText, JSON parsing)
-│   ├── tavily.ts                 # Tavily web-search wrapper
+│   ├── storage.ts                # localStorage: session, profile, sales, conversations
 │   ├── parse-sale.ts             # Natural-language sale parser + words→digits
-│   ├── storage.ts                # Local-first storage with Supabase sync/migration
-│   ├── conversations.ts          # Conversation/message CRUD (local + Supabase)
-│   ├── language.ts               # Language label → prompt string mapping
+│   ├── parse-sale.test.ts        # Vitest unit tests for the parser
 │   ├── auth-context.tsx          # React context: current user, loading, signOut
-│   ├── types.ts                  # Shared types + business types / languages constants
-│   ├── utils.ts                  # cn(), formatCurrency(), formatDate()
-│   └── supabase/
-│       ├── client.ts             # createClient + isSupabaseConfigured()
-│       └── auth.ts               # signUp/signIn/signOut/getCurrentUser/ensureSession
+│   ├── language.ts               # Language label → prompt string mapping
+│   ├── types.ts                  # Shared types (incl. AuthUser, Conversation, ChatMessage) + constants
+│   └── utils.ts                  # cn(), formatCurrency(), formatDate()
 └── types/
     └── speech.d.ts               # Web Speech API type declarations
 ```
@@ -297,134 +199,102 @@ src/
 ## Feature Reference (Every Page)
 
 ### Landing page — `/`
-Public marketing page. Shows the product pitch, a stat row (Free to start · 4 languages · 24/7 AI insights), and four feature cards (Voice Logging, Smart Insights, Micro-Loans, Your Language). If you're already signed in, the CTAs change to "Go to Dashboard"; otherwise they point to **Get Started** (`/signup`) and **Sign In** (`/signin`).
+Public marketing page. Shows the product pitch, a stat row, and feature cards. If you already have a local session the CTAs change to "Go to Dashboard"; otherwise they point to **Get Started** (`/signup`) and **Sign In** (`/signin`).
 
 ### Sign Up — `/signup`
-Email + password + confirm-password form. Client-side validation requires a non-empty email, a password of at least 6 characters, and matching confirmation. On success it creates a Supabase user and redirects to **`/onboarding`**. Errors (e.g., email already registered) are shown inline.
+Email + password + confirm-password form with client-side validation (non-empty email, password ≥ 6 chars, matching confirmation). On success it creates a **local session** (`signUp` in `storage.ts` — the password is not checked or stored) and redirects to **`/onboarding`**.
 
 ### Sign In — `/signin`
-Email + password form backed by Supabase `signInWithPassword`. On success it redirects to **`/dashboard`**; failures are shown inline.
+Email + password form. On success it creates/loads a **local session** (`signIn` in `storage.ts` — again, no real credential check) and redirects to **`/dashboard`**.
 
 ### Onboarding — `/onboarding`
 A 3-step wizard with a progress bar:
-1. **Your Name** — used to personalize greetings (minimum 2 characters).
-2. **Business Type** — Retail Shop 🏪 · Food & Drinks 🍲 · Services ✂️ · Agriculture 🌾 · Other 💼. Feeds AI tips and loan advice.
-3. **Language** — English · Nigerian Pidgin · Swahili · Hindi. Determines the language of AI responses and dashboard greetings.
+1. **Your Name** — personalizes greetings (minimum 2 characters).
+2. **Business Type** — Retail Shop 🏪 · Food & Drinks 🍲 · Services ✂️ · Agriculture 🌾 · Other 💼.
+3. **Language** — English · Nigerian Pidgin · Swahili · Hindi.
 
-The profile is saved via `saveOnboardingData` (localStorage + Supabase) and you're redirected to the dashboard. This page is what `OnboardingGuard` sends users to if they're authenticated but have no profile yet.
+The profile is saved via `saveOnboardingData` (localStorage) and you're redirected to the dashboard. This is where `OnboardingGuard` sends signed-in users who have no profile yet.
 
 ### Dashboard — `/dashboard`
 The authenticated home screen:
-- **Localized greeting** using your name and language (e.g., "Welcome back o!" for Pidgin).
-- **Sales summary card**: Today's sales headline, plus This Week and This Month totals (computed in `getSalesSummary`).
-- **Chat CTA** linking to the AI assistant.
-- **Quick Actions**: Ask AI, Log Sale, Insights.
-- **AI Micro-Loan Advice** shortcut to `/loans`.
-- **AI Insights**: 2–3 short, plain-language observations fetched live from `/api/get-insights`, with loading, error, and empty states.
-- **Recent Sales**: your five most recent entries (shown once you've logged any).
-- **Empty state**: a "Log Your First Sale" prompt when you have no sales.
+- **Localized greeting** using your name and language.
+- **Sales summary card**: Today, This Week, and This Month totals (computed in `getSalesSummary`).
+- **Chat CTA** and **Quick Actions** (Ask AI, Log Sale, Insights).
+- **AI Insights**: 2–3 short observations **hardcoded in the page** (they vary with your sales count), with loading/empty states preserved for when a backend is connected.
+- **Recent Sales**: your five most recent entries. **Empty state**: a "Log Your First Sale" prompt.
 
 ### Log a Sale — `/log`
 Two ways to record a sale:
-- **Voice** — tap the microphone to start the browser's speech recognition. Interim text streams into the input as you talk. When a final transcript is produced *and* a valid amount/quantity is detected, the sale **auto-saves** (guarded so the same transcript isn't saved twice). If the browser doesn't support the Web Speech API, the mic is disabled and a hint points you to the text field.
-- **Text** — type in plain language (e.g., "sold 10 bags of rice for ₦50"). A live **"Detected"** card previews the parsed item/quantity and formatted amount before you hit **Save**. Enter also saves.
+- **Voice** — tap the microphone to start speech recognition. Interim text streams into the input; when a final transcript with a valid amount/quantity is produced, the sale **auto-saves** (guarded against double-saves). Unsupported browsers disable the mic and point you to the text field.
+- **Text** — type in plain language (e.g., "sold 10 bags of rice for ₦50"). A live **"Detected"** card previews the parsed item/quantity and amount before you save.
 
-Parsing is handled by `parseSaleInput`, which understands spelled-out numbers ("five" → 5), quantity+unit patterns ("10 bags of rice"), and price cues ("for"/"at"/"$"). A **Recent Sales** list shows your latest five entries with timestamps.
+Parsing is handled by `parseSaleInput`, which understands spelled-out numbers ("five" → 5), quantity+unit patterns, and price cues ("for"/"at"/"$").
 
 ### Insights — `/insights`
-Revenue visualization built with Recharts:
-- **Summary tiles**: This Week total and your Best Day (highest single-day revenue in the last 7 days).
-- **Weekly tab**: bar chart of the last 7 days.
-- **Monthly tab**: bar chart of the last 4 weeks, with a running total.
-- Friendly empty states prompt you to log sales when there's no data yet.
+Revenue visualization built with Recharts: **This Week** total, your **Best Day**, a **Weekly** bar chart (last 7 days) and a **Monthly** bar chart (last 4 weeks). Friendly empty states when there's no data. Fully client-side — no backend needed.
 
 ### Micro-Loans — `/loans`
-Requests AI-matched loan suggestions from `/api/get-loan-recommendation` using your sales history and business type. Each card shows the loan name, a recommended amount range, an eligibility badge (**High** / **Medium** / **Low**), the rationale, and a suggested repayment period. Low-eligibility cards nudge you to keep logging sales. A disclaimer notes these are AI-generated guidance, not real offers.
+Shows loan suggestions **hardcoded in the page**. Each card shows the loan name, amount, an eligibility badge (**High** / **Medium** / **Low**), the rationale, and a suggested repayment. Eligibility shifts with how many sales you've logged. A disclaimer notes these are guidance, not real offers.
 
 ### Learn — `/learn`
-A financial-literacy micro-course:
-- **8 swipeable tip cards** across five topics — Savings, Loans, Budgeting, Growth, Safety — with pagination dots and touch-swipe support.
-- **Topic filters** to jump straight to a category.
-- **"Get a personalized AI tip"** button that calls `/api/get-tip` for a fresh, business-type- and language-specific tip.
+A financial-literacy micro-course: **8 swipeable tip cards** across five topics (Savings, Loans, Budgeting, Growth, Safety) with pagination dots and touch-swipe support, plus **topic filters**. The **"Get a personalized tip"** button picks a random entry from a fixed `AI_TIPS` list defined in the page.
 
 ### AI Assistant — `/assistant`
-A chat interface with your business context baked in:
-- **Context-aware replies**: each message is sent to `/api/assistant` along with your name, business type, language, sales summary, and recent sales, so answers reference your actual numbers.
-- **Quick prompts**: one-tap starters ("How am I doing this week?", "Help me save more money", "Should I take a small loan?", "What should I restock?").
-- **Inline sale logging**: before treating your text as a chat message, the app runs it through `/api/parse-sale`. If it looks like a sale, a **"Parsed sale"** confirmation card appears so you can save it (to Supabase, or locally with sync-later if you're not signed in) instead of chatting.
-- **Live web search**: for restock/pricing/competitor questions, the server augments the answer with Tavily results (when `TAVILY_API_KEY` is set).
-- **Conversations**: a desktop sidebar lists conversations; the server persists messages and auto-generates a conversation title from your first message.
-- Responses are returned in your chosen language.
+A chat interface with your business context assembled client-side:
+- **Inline sale logging**: before treating your text as a chat message, the app runs it through `parseSaleInput` (real, deterministic). If it looks like a sale, a **"Parsed sale"** confirmation card appears so you can save it to your local sales instead of chatting.
+- **Chat replies** are a **canned "offline mode" placeholder** (hardcoded in the page) that references your name and sales count.
+- **Quick prompts**: one-tap starters.
+- **Conversations**: a desktop sidebar lists conversations stored in `localStorage`; per-conversation message history is not persisted offline (that's a backend concern).
 
 ### Navigation
-- **`TopNav`** (desktop, `md+`): Dashboard · AI Assistant · Log Sale · Insights · Loans · Learn, plus a sign-out button.
-- **`BottomNav`** (mobile): a four-tab bar — Home · Log · AI · Insights.
+- **`TopNav`** (desktop, `md+`): Dashboard · AI Assistant · Log Sale · Insights · Loans · Learn, plus sign-out.
+- **`BottomNav`** (mobile): Home · Log · AI · Insights.
 - Both are hidden on the landing, onboarding, and auth pages.
-
----
-
-## API Reference (Every Endpoint)
-
-All endpoints are Next.js Route Handlers under `src/app/api/`. AI endpoints depend on `GROQ_API_KEY`.
-
-| Method & Path | Body | Response | Notes |
-| --- | --- | --- | --- |
-| `POST /api/assistant` | `{ messages, context, conversationId? }` | `{ reply }` | Builds a system + context prompt, optionally runs a Tavily search for restock/price/competitor queries, calls Groq, and persists the exchange + auto-titles the conversation. |
-| `POST /api/parse-sale` | `{ text }` | `{ success, parsed }` | Deterministic NL → `{ description, amount, quantity, item }`. No AI. `GET` returns a usage hint. |
-| `POST /api/log-sale` | Sale object or array | `{ success, inserted }` | Upserts sales into Supabase for the authenticated user. Returns **401** if not authenticated (clients then fall back to local save), **500** if Supabase isn't configured. |
-| `POST /api/get-insights` | `{ sales, language }` | `{ insights: string[] }` | AI returns a JSON array of 2–3 short insights (or a single clarifying question if there's little data). |
-| `POST /api/get-tip` | `{ businessType, language }` | `{ tip }` | AI returns one short financial-literacy tip. |
-| `POST /api/get-loan-recommendation` | `{ sales, businessType, language }` | `{ loans: AiLoan[] }` | AI returns a JSON array of loan objects (`name`, `amount`, `reason`, `eligibility`, `repayment`). |
-| `GET /api/conversations` | — | `{ conversations }` | Lists conversations (Supabase if configured, else local). |
-| `POST /api/conversations` | `{ title? }` | `{ conversation }` | Creates a conversation. |
-| `GET /api/conversations/[id]/messages` | — | `{ messages }` | Lists messages for a conversation. |
-| `POST /api/conversations/[id]/messages` | `{ role, content }` | `{ message }` | Adds a message to a conversation. |
-| `POST /api/tavily/search` | `{ query, searchDepth? }` | `{ ok, result }` | Web-search proxy. In-memory rate limit of **20 requests/minute per IP**; returns **429** when exceeded. `GET` returns a usage hint. |
 
 ---
 
 ## Data Model
 
-Defined in [`src/lib/types.ts`](src/lib/types.ts) and the storage/conversation modules.
+Shared types are defined in [`src/lib/types.ts`](src/lib/types.ts) (including `AuthUser`, `Conversation`, and `ChatMessage`). The loan card type (`AiLoan`) is local to [`src/app/loans/page.tsx`](src/app/loans/page.tsx).
 
 - **`OnboardingData`** — `{ name, businessType, language, completedAt }`
   - `BusinessType`: `retail | food | services | agriculture | other`
   - `Language`: `english | pidgin | swahili | hindi`
 - **`Sale`** — `{ id, description, amount, quantity?, item?, createdAt }`
+- **`AuthUser`** — `{ id, email }`
 - **`Conversation`** — `{ id, title, createdAt }`
-- **`Message`** — `{ id?, role: "user" | "assistant", content, createdAt? }`
+- **`ChatMessage`** — `{ role: "user" | "assistant", content }`
+- **`AiLoan`** — `{ name, amount, reason, eligibility, repayment }`
 
-**localStorage keys** (used for the local-first layer):
+**localStorage keys** (the entire persistence layer):
 
 | Key | Contents |
 | --- | --- |
 | `sme-ai-onboarding` | The user's profile (`OnboardingData`). |
 | `sme-ai-sales` | Array of `Sale` records (newest first). |
+| `sme-ai-user` | The local session user (`AuthUser`), or absent when signed out. |
 | `sme-ai-conversations` | Array of `Conversation` records. |
-| `sme-ai-supabase-migrated` | Flag set once local data has been migrated to Supabase. |
 
-**Currency:** amounts are displayed in Nigerian Naira (₦) via `Intl.NumberFormat("en-NG", …)` in `formatCurrency`. Note that some input placeholders and the chart Y-axis still show `$`; the parser treats the trailing/marked number as the amount regardless of symbol.
+**Currency:** amounts are displayed in Nigerian Naira (₦) via `Intl.NumberFormat("en-NG", …)` in `formatCurrency`. Some input placeholders and the chart Y-axis still show `$`; the parser treats the marked/trailing number as the amount regardless of symbol.
 
 ---
 
 ## Deployment
 
-The app is a standard Next.js 14 project and deploys cleanly to **[Vercel](https://vercel.com/)**:
+The app is a standard Next.js 14 project and deploys cleanly to **[Vercel](https://vercel.com/)** or any Node host that can run `npm run build` + `npm start`:
 
 1. Push the repository to GitHub/GitLab/Bitbucket.
-2. Import the project into Vercel.
-3. Add the four environment variables (`GROQ_API_KEY`, `TAVILY_API_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) in **Project → Settings → Environment Variables**.
-4. Deploy. Vercel runs `npm run build` automatically.
+2. Import the project into Vercel (or your host of choice).
+3. Deploy. No environment variables are required for this frontend-only build.
 
-Any Node host that can run `npm run build` + `npm start` will also work. The in-memory rate limiter in `/api/tavily/search` is per-process, so on multi-instance/serverless deployments it is best-effort only.
+Because all data lives in each visitor's browser `localStorage`, deployments are stateless — there is nothing to provision, and different browsers/devices do not share data. That changes only if you later add a backend.
 
 ---
 
 ## Known Limitations & Notes
 
-- **Provider naming mismatch:** `src/lib/anthropic.ts` and a couple of user-facing error strings reference "Claude"/`ANTHROPIC_API_KEY`, but the code calls **Groq** and reads **`GROQ_API_KEY`**. Set `GROQ_API_KEY`.
-- **Voice logging** relies on the browser Web Speech API, which has the best support in Chromium-based browsers; recognition is fixed to `en-US`. Unsupported browsers automatically fall back to text entry.
-- **Supabase is optional but recommended.** Without it there are no real accounts and data lives only in the current browser's `localStorage`.
-- **Loan recommendations are AI-generated guidance**, not real financial offers.
-- **No database migrations are committed** — use the SQL in [Supabase Setup](#supabase-setup) to provision the schema.
-- **No automated tests** are currently included.
+- **Frontend-only build.** There is no server, database, or AI. Accounts are unverified local sessions, and the assistant/insights/tips/loan features return hardcoded placeholder data.
+- **Data is per-browser.** Everything is in `localStorage`, so data doesn't sync across devices or survive clearing site data.
+- **`src/components/floating-log.tsx` is an unfinished, unused stub** — it declares hooks but renders nothing and isn't mounted anywhere. Finish it or delete it before shipping.
+- **Voice logging** relies on the browser Web Speech API (best support in Chromium-based browsers); recognition is fixed to `en-US`. Unsupported browsers fall back to text entry.
+- **Loan recommendations are placeholder guidance**, not real financial offers.

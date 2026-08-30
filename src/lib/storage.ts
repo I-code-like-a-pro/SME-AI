@@ -1,53 +1,15 @@
 "use client";
 
-import type { OnboardingData, Sale } from "./types";
+import type { AuthUser, Conversation, InventoryItem, OnboardingData, Sale } from "./types";
 import { parseSaleInput } from "./parse-sale";
-import { getSupabaseClient, isSupabaseConfigured } from "./supabase/client";
-import { ensureSession, getUserId } from "./supabase/auth";
 
 export { parseSaleInput };
 
 const ONBOARDING_KEY = "sme-ai-onboarding";
 const SALES_KEY = "sme-ai-sales";
-const MIGRATED_KEY = "sme-ai-supabase-migrated";
-
-interface ProfileRow {
-  id: string;
-  name: string;
-  business_type: string;
-  language: string;
-  completed_at: string;
-}
-
-interface SaleRow {
-  id: string;
-  user_id: string;
-  description: string;
-  amount: number;
-  quantity: number | null;
-  item: string | null;
-  created_at: string;
-}
-
-function mapProfileRow(row: ProfileRow): OnboardingData {
-  return {
-    name: row.name,
-    businessType: row.business_type as OnboardingData["businessType"],
-    language: row.language as OnboardingData["language"],
-    completedAt: row.completed_at,
-  };
-}
-
-function mapSaleRow(row: SaleRow): Sale {
-  return {
-    id: row.id,
-    description: row.description,
-    amount: Number(row.amount),
-    quantity: row.quantity ?? undefined,
-    item: row.item ?? undefined,
-    createdAt: row.created_at,
-  };
-}
+const USER_KEY = "sme-ai-user";
+const CONVERSATIONS_KEY = "sme-ai-conversations";
+const INVENTORY_KEY = "sme-ai-inventory";
 
 function getLocalOnboarding(): OnboardingData | null {
   if (typeof window === "undefined") return null;
@@ -61,6 +23,7 @@ function getLocalOnboarding(): OnboardingData | null {
 }
 
 function saveLocalOnboarding(data: OnboardingData): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(ONBOARDING_KEY, JSON.stringify(data));
 }
 
@@ -81,106 +44,16 @@ function saveLocalSale(sale: Sale): void {
   localStorage.setItem(SALES_KEY, JSON.stringify(sales));
 }
 
-async function migrateLocalStorageToSupabase(userId: string): Promise<void> {
-  if (typeof window === "undefined") return;
-  if (localStorage.getItem(MIGRATED_KEY)) return;
-
-  const supabase = getSupabaseClient();
-  const profile = getLocalOnboarding();
-  const sales = getLocalSales();
-
-  if (profile) {
-    const { error } = await supabase.from("profiles").upsert({
-      id: userId,
-      name: profile.name,
-      business_type: profile.businessType,
-      language: profile.language,
-      completed_at: profile.completedAt,
-    });
-    if (error) throw error;
-  }
-
-  if (sales.length > 0) {
-    const { error } = await supabase.from("sales").upsert(
-      sales.map((s) => ({
-        id: s.id,
-        user_id: userId,
-        description: s.description,
-        amount: s.amount,
-        quantity: s.quantity ?? null,
-        item: s.item ?? null,
-        created_at: s.createdAt,
-      })),
-      { onConflict: "id" }
-    );
-    if (error) throw error;
-  }
-
-  localStorage.setItem(MIGRATED_KEY, "true");
-}
-
-async function withSupabase<T>(
-  operation: (userId: string) => Promise<T>,
-  fallback: () => T
-): Promise<T> {
-  if (!isSupabaseConfigured()) return fallback();
-
-  try {
-    await ensureSession();
-    const userId = await getUserId();
-    await migrateLocalStorageToSupabase(userId);
-    return await operation(userId);
-  } catch (error) {
-    console.warn("[storage] Supabase unavailable, using localStorage", error);
-    return fallback();
-  }
-}
-
 export async function getOnboardingData(): Promise<OnboardingData | null> {
-  return withSupabase(async (userId) => {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (data) return mapProfileRow(data as ProfileRow);
-    return getLocalOnboarding();
-  }, getLocalOnboarding);
+  return getLocalOnboarding();
 }
 
 export async function saveOnboardingData(data: OnboardingData): Promise<void> {
   saveLocalOnboarding(data);
-
-  await withSupabase(async (userId) => {
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.from("profiles").upsert({
-      id: userId,
-      name: data.name,
-      business_type: data.businessType,
-      language: data.language,
-      completed_at: data.completedAt,
-    });
-    if (error) throw error;
-  }, () => undefined);
 }
 
 export async function getSales(): Promise<Sale[]> {
-  return withSupabase(async (userId) => {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("sales")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-    const rows = (data ?? []) as SaleRow[];
-    if (rows.length === 0) return getLocalSales();
-    return rows.map(mapSaleRow);
-  }, getLocalSales);
+  return getLocalSales();
 }
 
 export async function saveSale(
@@ -196,21 +69,6 @@ export async function saveSale(
   };
 
   saveLocalSale(fullSale);
-
-  await withSupabase(async (userId) => {
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.from("sales").insert({
-      id: fullSale.id,
-      user_id: userId,
-      description: fullSale.description,
-      amount: fullSale.amount,
-      quantity: fullSale.quantity ?? null,
-      item: fullSale.item ?? null,
-      created_at: fullSale.createdAt,
-    });
-    if (error) throw error;
-  }, () => undefined);
-
   return fullSale;
 }
 
@@ -233,4 +91,171 @@ export async function getSalesSummary() {
     totalSales: sales.length,
     recentSales: sales.slice(0, 5),
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Auth — local login/session stored in localStorage.                         */
+/* -------------------------------------------------------------------------- */
+
+function getLocalUser(): AuthUser | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
+function setLocalUser(user: AuthUser | null): void {
+  if (typeof window === "undefined") return;
+  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+  else localStorage.removeItem(USER_KEY);
+  // Let the auth context (and other browser tabs) know the session changed.
+  window.dispatchEvent(new CustomEvent("sme-ai:auth-changed"));
+}
+
+export async function getUser(): Promise<AuthUser | null> {
+  return getLocalUser();
+}
+
+export async function signIn(email: string): Promise<AuthUser> {
+  const existing = getLocalUser();
+  const user: AuthUser =
+    existing && existing.email === email
+      ? existing
+      : { id: crypto.randomUUID(), email };
+  setLocalUser(user);
+  return user;
+}
+
+export async function signUp(email: string): Promise<AuthUser> {
+  const user: AuthUser = { id: crypto.randomUUID(), email };
+  setLocalUser(user);
+  return user;
+}
+
+export async function signOut(): Promise<void> {
+  setLocalUser(null);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Conversations — chat threads stored in localStorage.                        */
+/* -------------------------------------------------------------------------- */
+
+function getLocalConversations(): Conversation[] {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(CONVERSATIONS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as Conversation[];
+  } catch {
+    return [];
+  }
+}
+
+export async function getConversations(): Promise<Conversation[]> {
+  return getLocalConversations();
+}
+
+export async function createConversation(
+  title = "New conversation"
+): Promise<Conversation> {
+  const conv: Conversation = {
+    id: crypto.randomUUID(),
+    title,
+    createdAt: new Date().toISOString(),
+  };
+  const all = getLocalConversations();
+  all.unshift(conv);
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(all));
+  }
+  return conv;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Inventory — stock items stored in localStorage.                             */
+/* -------------------------------------------------------------------------- */
+
+function getLocalInventory(): InventoryItem[] {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(INVENTORY_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as InventoryItem[];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalInventory(items: InventoryItem[]): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(INVENTORY_KEY, JSON.stringify(items));
+}
+
+export async function getInventory(): Promise<InventoryItem[]> {
+  return getLocalInventory();
+}
+
+export async function addInventoryItem(
+  input: Omit<InventoryItem, "id" | "createdAt"> & { id?: string; createdAt?: string }
+): Promise<InventoryItem> {
+  const now = new Date().toISOString();
+  const item: InventoryItem = {
+    id: input.id ?? crypto.randomUUID(),
+    name: input.name,
+    quantity: input.quantity,
+    lowStockThreshold: input.lowStockThreshold,
+    category: input.category,
+    unit: input.unit,
+    costPrice: input.costPrice,
+    sellingPrice: input.sellingPrice,
+    createdAt: input.createdAt ?? now,
+    updatedAt: now,
+  };
+  const all = getLocalInventory();
+  all.unshift(item);
+  writeLocalInventory(all);
+  return item;
+}
+
+export async function updateInventoryItem(
+  id: string,
+  patch: Partial<Omit<InventoryItem, "id" | "createdAt">>
+): Promise<InventoryItem | null> {
+  const all = getLocalInventory();
+  const index = all.findIndex((i) => i.id === id);
+  if (index === -1) return null;
+  const updated: InventoryItem = {
+    ...all[index],
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  all[index] = updated;
+  writeLocalInventory(all);
+  return updated;
+}
+
+export async function adjustInventoryStock(
+  id: string,
+  delta: number
+): Promise<InventoryItem | null> {
+  const all = getLocalInventory();
+  const index = all.findIndex((i) => i.id === id);
+  if (index === -1) return null;
+  const updated: InventoryItem = {
+    ...all[index],
+    quantity: Math.max(0, all[index].quantity + delta),
+    updatedAt: new Date().toISOString(),
+  };
+  all[index] = updated;
+  writeLocalInventory(all);
+  return updated;
+}
+
+export async function deleteInventoryItem(id: string): Promise<void> {
+  const all = getLocalInventory().filter((i) => i.id !== id);
+  writeLocalInventory(all);
 }

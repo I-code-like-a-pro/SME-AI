@@ -7,6 +7,7 @@ import {
   PlusCircle,
   BarChart3,
   Sparkles,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ const navItems = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/log", label: "Log", icon: PlusCircle },
   { href: "/assistant", label: "AI", icon: Sparkles },
+  { href: "/inventory", label: "Stock", icon: Package },
   { href: "/insights", label: "Insights", icon: BarChart3 },
 ];
 
