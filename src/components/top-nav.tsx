@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   Home,
   PlusCircle,
@@ -15,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
+import { getOnboardingData } from "@/lib/storage";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -29,6 +31,18 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useAuth();
+  const [businessName, setBusinessName] = useState("Grace's Mini Mart");
+
+  useEffect(() => {
+    async function loadProfile() {
+      const onboarding = await getOnboardingData();
+      if (onboarding?.name) {
+        setBusinessName(onboarding.name + "'s Business");
+      }
+    }
+
+    loadProfile();
+  }, []);
 
   async function handleSignOut() {
     try {
@@ -52,6 +66,7 @@ export function TopNav() {
           </div>
           <span className="text-lg font-bold text-primary">SME AI</span>
         </Link>
+
         <nav className="flex items-center gap-1">
           {navItems.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href;
@@ -63,7 +78,7 @@ export function TopNav() {
                   "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -71,6 +86,24 @@ export function TopNav() {
               </Link>
             );
           })}
+
+          <Link
+            href="/profile"
+            className="ml-2 flex items-center gap-3 rounded-xl border border-green-200 bg-green-50/60 px-2.5 py-1.5 transition-colors hover:border-primary hover:bg-green-50"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+              G
+            </div>
+            <div className="min-w-0 text-left">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Owner
+              </div>
+              <div className="truncate text-sm font-bold text-gray-900">
+                {businessName}
+              </div>
+            </div>
+          </Link>
+
           <Button
             onClick={handleSignOut}
             variant="ghost"

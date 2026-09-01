@@ -8,6 +8,6 @@ export default defineConfig({
     // Pure logic + API handlers run in Node. Component tests can opt into
     // jsdom per-file with a `// @vitest-environment jsdom` comment.
     environment: "node",
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    include: ["src/**/*.{test,spec}.{ts,tsx,js,jsx}"],
   },
 });
