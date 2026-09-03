@@ -24,13 +24,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          <AuthGuard>
-            {/* NOVUS_ANALYTICS */}
-            <TopNav />
-            <main className="min-h-screen pb-20 md:pb-0">{children}</main>
-            <BottomNav />
-            <FloatingLog />
-          </AuthGuard>
+          {/* NOVUS_ANALYTICS */}
+          <TopNav />
+          <main className="min-h-screen pb-20 md:pb-0">{children}</main>
+          <BottomNav />
+          <FloatingLog />
         </AuthProvider>
       </body>
     </html>
