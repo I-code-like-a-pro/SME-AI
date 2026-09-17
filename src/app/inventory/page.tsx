@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Icon } from '@iconify/react';
 import {
   Package,
   Plus,
@@ -478,7 +479,7 @@ export default function InventoryPage() {
                           disabled={busy || item.quantity === 0}
                           aria-label={`Reduce ${item.name} stock`}
                         >
-                          <Minus className="h-4 w-4" />
+                          <Icon icon="akar-icons:minus" className="h-6 w-6"  />
                         </Button>
                         <Button
                           variant="outline"
@@ -487,7 +488,8 @@ export default function InventoryPage() {
                           disabled={busy}
                           aria-label={`Increase ${item.name} stock`}
                         >
-                          <Plus className="h-4 w-4" />
+                          
+                          <Icon icon="akar-icons:plus" className="h-6 w-6"  />
                         </Button>
                       </div>
                     </div>

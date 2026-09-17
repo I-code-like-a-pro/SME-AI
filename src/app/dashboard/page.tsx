@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icon } from '@iconify/react';
+
 import Link from "next/link";
 import {
   PlusCircle,
@@ -76,20 +78,20 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-lg px-4 py-6 md:max-w-5xl md:px-6">
         <div className="mb-6">
           <p className="text-muted-foreground text-sm font-medium">{greeting}</p>
-          <h1 className="text-2xl font-extrabold text-gray-900">{user?.name ?? "Trader"} 👋</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900">{user?.name ?? "Trader"}</h1>
         </div>
 
         <Link href="/assistant" className="block mb-6">
           <Card className="border-0 bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-lg hover:shadow-xl transition-shadow">
             <CardContent className="flex items-center gap-4 p-5">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
-                <MessageCircle className="h-7 w-7" />
+                <Icon icon="ant-design:message-twotone" className="h-9 w-9" />
               </div>
               <div className="flex-1">
                 <p className="font-bold text-lg">Chat with your AI assistant</p>
                 <p className="text-green-100 text-sm">Ask about sales, savings, loans & growth</p>
               </div>
-              <ArrowUpRight className="h-6 w-6 shrink-0" />
+              <Icon icon="akar-icons:arrow-up-right" className="h-6 w-6 shrink-0"/>
             </CardContent>
           </Card>
         </Link>
@@ -140,22 +142,22 @@ export default function DashboardPage() {
           <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:border-primary/40 transition-all">
             <CardContent className="flex items-center gap-4 p-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shrink-0">
-                <Banknote className="h-6 w-6" />
+                <Icon icon="ant-design:banknote-twotone" className="h-6 w-6" />
               </div>
               <div className="flex-1">
                 <p className="font-bold text-gray-900">AI Micro-Loan Advice</p>
                 <p className="text-sm text-muted-foreground">Personalized loan options for your business</p>
               </div>
-              <ArrowUpRight className="h-5 w-5 text-primary shrink-0" />
+              <Icon icon="akar-icons:arrow-up-right" className="h-5 w-5 text-primary shrink-0" />
             </CardContent>
           </Card>
         </Link>
 
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="h-4 w-4 text-primary" />
+            <Icon icon="ant-design:sparkles-twotone" className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide">AI Insights</h2>
-            {insightsLoading && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+            {insightsLoading && <Icon icon="ant-design:loading-twotone" className="h-3 w-3 animate-spin text-primary" />}
           </div>
 
           {insightsError && (
@@ -168,7 +170,7 @@ export default function DashboardPage() {
             {insightsLoading && insights.length === 0 && (
               <Card className="border-2 border-green-100">
                 <CardContent className="p-4 text-sm text-muted-foreground flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Icon icon="ant-design:loading-twotone" className="h-4 w-4 animate-spin" />
                   Analyzing your sales with AI...
                 </CardContent>
               </Card>
@@ -177,7 +179,7 @@ export default function DashboardPage() {
               <Card key={i} className="border-2 border-green-100 bg-gradient-to-r from-green-50 to-white">
                 <CardContent className="p-4">
                   <p className="text-sm text-muted-foreground leading-relaxed flex gap-2">
-                    <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <Icon icon="ant-design:sparkles-twotone" className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                     {insight}
                   </p>
                 </CardContent>
@@ -198,7 +200,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Recent Sales</h2>
               <Button asChild variant="ghost" size="sm" className="text-primary">
-                <Link href="/log">View all <ArrowUpRight className="h-4 w-4" /></Link>
+                <Link href="/log">View all <Icon icon="akar-icons:arrow-up-right" className="h-4 w-4" /></Link>
               </Button>
             </div>
             <div className="space-y-2">
@@ -223,7 +225,7 @@ export default function DashboardPage() {
               <p className="font-semibold text-gray-900 mb-1">No sales logged yet</p>
               <p className="text-sm text-muted-foreground mb-4">Log your first sale so AI can give you personalized advice.</p>
               <Button asChild>
-                <Link href="/log"><PlusCircle className="h-4 w-4" /> Log Your First Sale</Link>
+                <Link href="/log"><Icon icon="akar-icons:plus-circle" className="h-4 w-4" /> Log Your First Sale</Link>
               </Button>
             </CardContent>
           </Card>
